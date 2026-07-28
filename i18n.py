@@ -113,9 +113,10 @@ def t(lang: str, key: str, **kwargs) -> str:
 
 
 def resolve_lang(args_lang: str | None = None) -> str:
-    """Resolve language: CLI arg > env var > default 'zh'."""
+    """Resolve language: CLI arg > env var > default 'zh'.
+    Only 'zh' and 'en' are valid; everything else falls back to 'zh'."""
     import os
-    if args_lang:
+    if args_lang and args_lang in ("zh", "en"):
         return args_lang
     env = os.environ.get("EVOLUTION_LANG", "").lower()
     if env in ("zh", "en"):
