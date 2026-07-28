@@ -1,0 +1,48 @@
+services:
+  evolution:
+    build: .
+    container_name: hermes-evolution
+    restart: "no"
+    volumes:
+      # 挂载 Hermes 数据目录（只读）
+      - ${HERMES_HOME:-~/.hermes}:/hermes:ro
+      # 挂载输出目录
+      - ./output:/app/output
+    environment:
+      - TZ=Asia/Shanghai
+    # 手动运行：docker compose run --rm evolution python generate.py --baseline
+    # 每日自动更新：设置 cron job 或使用下面的 profile
+
+  # 可选：通过 nginx 托管 HTML
+  web:
+    image: nginx:alpine
+    container_name: hermes-evolution-web
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    volumes:
+      - ./output:/usr/share/nginx/html:ro
+    depends_on:
+      - evolution
+    profiles:
+      - serve
+
+  # 定时更新 + Web 服务（完整模式）
+  cron:
+    build: .
+    container_name: hermes-evolution-cron
+    restart: unless-stopped
+    volumes:
+      - ${HERMES_HOME:-~/.hermes}:/hermes:ro
+      - ./output:/app/output
+    environment:
+      - TZ=Asia/Shanghai
+    # 每天凌晨 2 点运行
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        echo "0 2 * * * cd /app && python generate.py --hermes-home /hermes --output-dir /app/output" > /etc/crontabs/root
+        echo "0 3 * * 0 cd /app && python generate.py --hermes-home /hermes --output-dir /app/output --full-rebuild" >> /etc/crontabs/root
+        crond -f -l 2
+    profiles:
+      - full
