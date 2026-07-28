@@ -674,16 +674,22 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <script>
     // ── Client-side i18n engine ──
     const I18N = {{ i18n_all }};
+    const DEFAULT_LANG = '{{ lang }}';
 
     function getLang() {
-        let lang = localStorage.getItem('evolution-lang');
-        if (lang && I18N[lang]) return lang;
-        return '{{ lang }}';
+        try {
+            let lang = localStorage.getItem('evolution-lang');
+            if (lang && I18N[lang]) return lang;
+        } catch(e) {}
+        return DEFAULT_LANG;
     }
 
     function switchLang(lang) {
-        localStorage.setItem('evolution-lang', lang);
+        try {
+            localStorage.setItem('evolution-lang', lang);
+        } catch(e) {}
         document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.dataset.i18n;
             if (I18N[lang] && I18N[lang][key]) {
@@ -692,19 +698,28 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             }
         });
         document.querySelectorAll('[data-i18n-attr]').forEach(el => {
-            const parts = el.dataset.i18nAttr.split(':');
-            const attr = parts[0], key = parts[1];
+            const spec = el.dataset.i18nAttr;
+            if (!spec) return;
+            const idx = spec.indexOf(':');
+            if (idx === -1) return;
+            const attr = spec.slice(0, idx), key = spec.slice(idx + 1);
             if (I18N[lang] && I18N[lang][key]) el[attr] = I18N[lang][key];
         });
         document.querySelectorAll('.lang-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.lang === lang);
         });
-        document.title = I18N[lang].page_title || document.title;
+        if (I18N[lang]) document.title = I18N[lang].page_title || document.title;
     }
 
     // Init on load
-    const savedLang = getLang();
-    if (savedLang !== '{{ lang }}') switchLang(savedLang);
+    (function() {
+        const savedLang = getLang();
+        if (savedLang !== DEFAULT_LANG) switchLang(savedLang);
+        // Always ensure correct button state (defensive)
+        document.querySelectorAll('.lang-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.lang === savedLang);
+        });
+    })();
     </script>
 </body>
 </html>"""
