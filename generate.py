@@ -34,6 +34,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from i18n import get as i18n_get, t as i18n_t, resolve_lang
+
 
 # ─── 路径工具 ────────────────────────────────────────────────────────────────
 
@@ -97,9 +99,28 @@ def parse_skill_frontmatter(content: str) -> dict:
 def collect_memory(hermes_home: Path) -> list[dict]:
     """从 memories 目录和 state.db 读取 memory 条目"""
     memories = []
-
-    # 方式1: 扫描 memories/ 目录下的 JSON 文件
     mem_dir = hermes_home / "memories"
+
+    # 方式1: *.md 纯文本文件（文件名为 target，每行一条）
+    if mem_dir.is_dir():
+        for mf in sorted(mem_dir.rglob("*.md")):
+            try:
+                target = mf.stem.lower()  # MEMORY.md → memory, USER.md → user
+                text = mf.read_text(encoding="utf-8").strip()
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line:
+                        memories.append({
+                            "target": target,
+                            "content": line[:200] + ("..." if len(line) > 200 else ""),
+                            "created_at": "",
+                            "updated_at": "",
+                            "content_hash": hash_content(line),
+                        })
+            except Exception:
+                pass
+
+    # 方式2: JSON 文件
     if mem_dir.is_dir():
         for mf in sorted(mem_dir.rglob("*.json")):
             try:
@@ -126,13 +147,12 @@ def collect_memory(hermes_home: Path) -> list[dict]:
             except Exception:
                 continue
 
-    # 方式2: 尝试从 state.db 读取（如果有 memory 表）
+    # 方式3: state.db
     db_path = hermes_home / "state.db"
     if db_path.exists():
         try:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
-            # 检查是否有 memory 表
             tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
             if "memory" in tables:
                 cur = conn.execute(
@@ -224,9 +244,9 @@ def latest_snapshot(snap_dir: Path) -> dict | None:
 
 
 def save_snapshot(snap_dir: Path, data: dict):
-    """保存快照"""
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    path = snap_dir / f"{date_str}.json"
+    """保存快照（使用时间戳避免同一天多次运行覆盖）"""
+    ts = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    path = snap_dir / f"{ts}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -296,7 +316,7 @@ def diff_snapshots(old: dict | None, new: dict) -> dict:
 # ─── HTML 模板（基于进化档案设计指南） ──────────────────────────────────────
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'zh-CN' if lang == 'zh' else 'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -507,52 +527,52 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div class="header">
         <div class="avatar">🧬</div>
         <h1>{{ title }}</h1>
-        <p class="subtitle">AI 能力成长追踪</p>
-        <p class="update">最近更新：{{ last_updated }}</p>
+        <p class="subtitle">{{ i18n.page_subtitle }}</p>
+        <p class="update">{{ i18n.page_updated }}：{{ last_updated }}</p>
     </div>
 
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-number">{{ stats.skills }}</div>
-            <div class="stat-label">Skills 技能</div>
+            <div class="stat-label">{{ i18n.stat_skills }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.memories }}</div>
-            <div class="stat-label">持久记忆</div>
+            <div class="stat-label">{{ i18n.stat_memories }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.cron_jobs }}</div>
-            <div class="stat-label">定时任务</div>
+            <div class="stat-label">{{ i18n.stat_cron }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.total_changes }}</div>
-            <div class="stat-label">累计进化</div>
+            <div class="stat-label">{{ i18n.stat_changes }}</div>
         </div>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>📈</span> 进化概览</h2>
+        <h2 class="section-title"><span>📈</span> {{ i18n.section_overview }}</h2>
         <div class="evolution-card">
             <div class="evo-item">
                 <div class="evo-icon">🆕</div>
                 <div class="evo-number">{{ evolution.skills_added }}</div>
-                <div class="evo-label">新增技能</div>
+                <div class="evo-label">{{ i18n.evo_skills_added }}</div>
             </div>
             <div class="evo-item">
                 <div class="evo-icon">🔄</div>
                 <div class="evo-number">{{ evolution.skills_updated }}</div>
-                <div class="evo-label">技能更新</div>
+                <div class="evo-label">{{ i18n.evo_skills_updated }}</div>
             </div>
             <div class="evo-item">
                 <div class="evo-icon">🧠</div>
                 <div class="evo-number">{{ evolution.memories_changed }}</div>
-                <div class="evo-label">记忆变更</div>
+                <div class="evo-label">{{ i18n.evo_memories_changed }}</div>
             </div>
         </div>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>🛠️</span> 已掌握的 Skills</h2>
+        <h2 class="section-title"><span>🛠️</span> {{ i18n.section_skills }}</h2>
         <div class="skills-grid">
             {% for skill in skills %}
             <div class="skill-card">
@@ -562,7 +582,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                     <span class="skill-category">{{ skill.category }}</span>
                     {% endif %}
                 </div>
-                <p class="skill-description">{{ skill.description or "暂无描述" }}</p>
+                <p class="skill-description">{{ skill.description or i18n.skill_no_desc }}</p>
                 <div class="skill-tags">
                     {% for tag in (skill.tags or [])[:5] %}
                     <span class="skill-tag">{{ tag }}</span>
@@ -577,11 +597,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>🧠</span> 持久记忆</h2>
+        <h2 class="section-title"><span>🧠</span> {{ i18n.section_memories }}</h2>
         <div class="memories-grid">
             {% for mem in memories %}
             <div class="memory-card">
-                <span class="memory-type {{ mem.target }}">{{ mem.target }}</span>
+                <span class="memory-type {{ mem.target }}">{{ i18n.memory_type_user if mem.target == "user" else i18n.memory_type_memory }}</span>
                 <p class="memory-content">{{ mem.content }}</p>
             </div>
             {% endfor %}
@@ -589,7 +609,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>📅</span> 进化时间线</h2>
+        <h2 class="section-title"><span>📅</span> {{ i18n.section_timeline }}</h2>
         <div class="timeline">
             {% for entry in timeline %}
             <div class="timeline-item{% if entry.future %} future{% endif %}{% if entry.has_gap %} gap{% endif %}">
@@ -598,13 +618,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                     <div class="timeline-title">
                         {{ entry.title }}
                         {% if entry.has_gap %}
-                        <span class="gap-warning">⚠️ 期间包含合并变更</span>
+                        <span class="gap-warning">{{ i18n.timeline_gap_warning }}</span>
                         {% endif %}
                     </div>
                     <p class="timeline-desc">{{ entry.summary }}</p>
                     {% if entry.changes %}
                     <details class="timeline-details">
-                        <summary>展开详情 ({{ entry.changes|length }} 项变更)</summary>
+                        <summary>{{ i18n.timeline_expand }} ({{ entry.changes|length }} {{ i18n.change_count_label }})</summary>
                         <ul>
                         {% for c in entry.changes %}
                             <li>
@@ -623,7 +643,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="footer">
-        <p>Powered by <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> · 自动生成于 {{ last_updated }}</p>
+        <p>Powered by <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> · {{ i18n.footer_powered }} {{ last_updated }}</p>
     </div>
 </body>
 </html>"""
@@ -631,7 +651,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
 # ─── HTML 渲染 ────────────────────────────────────────────────────────────────
 
-def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], output_path: Path):
+def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], output_path: Path, lang: str, i18n_dict: dict):
     """渲染最终 HTML"""
     try:
         from jinja2 import Template
@@ -649,7 +669,9 @@ def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], ou
     evolution = compute_evolution_stats(timeline_data)
 
     html = template.render(
-        title="Hermes 进化记录",
+        i18n=i18n_dict,
+        lang=lang,
+        title=i18n_dict.get("page_title", "Hermes Evolution Log"),
         last_updated=snapshot["timestamp"][:19].replace("T", " "),
         stats={
             "skills": len(skills),
@@ -705,7 +727,7 @@ def save_timeline(output_dir: Path, data: list[dict]):
     timeline_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dict):
+def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dict, lang: str):
     """将 diff 结果追加为时间线条目"""
     if diff_result.get("is_baseline"):
         return
@@ -724,26 +746,19 @@ def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dic
 
     # 构建摘要
     if type_counts.get("skill_added", 0):
-        n = type_counts["skill_added"]
-        summary_parts.append(f"新增 {n} 个技能")
+        summary_parts.append(i18n_t(lang, "change_skill_added", n=type_counts["skill_added"]))
     if type_counts.get("skill_updated", 0):
-        n = type_counts["skill_updated"]
-        summary_parts.append(f"更新 {n} 个技能")
+        summary_parts.append(i18n_t(lang, "change_skill_updated", n=type_counts["skill_updated"]))
     if type_counts.get("skill_removed", 0):
-        n = type_counts["skill_removed"]
-        summary_parts.append(f"移除 {n} 个技能")
+        summary_parts.append(i18n_t(lang, "change_skill_removed", n=type_counts["skill_removed"]))
     if type_counts.get("memory_added", 0):
-        n = type_counts["memory_added"]
-        summary_parts.append(f"新增 {n} 条记忆")
+        summary_parts.append(i18n_t(lang, "change_memory_added", n=type_counts["memory_added"]))
     if type_counts.get("memory_removed", 0):
-        n = type_counts["memory_removed"]
-        summary_parts.append(f"移除 {n} 条记忆")
+        summary_parts.append(i18n_t(lang, "change_memory_removed", n=type_counts["memory_removed"]))
     if type_counts.get("cron_added", 0):
-        n = type_counts["cron_added"]
-        summary_parts.append(f"新增 {n} 个定时任务")
+        summary_parts.append(i18n_t(lang, "change_cron_added", n=type_counts["cron_added"]))
     if type_counts.get("cron_removed", 0):
-        n = type_counts["cron_removed"]
-        summary_parts.append(f"移除 {n} 个定时任务")
+        summary_parts.append(i18n_t(lang, "change_cron_removed", n=type_counts["cron_removed"]))
 
     for c in changes:
         detail_desc = ""
@@ -752,7 +767,7 @@ def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dic
         elif c["type"] == "skill_updated":
             old_v = c.get("old", {}).get("version", "")
             new_v = c["detail"].get("version", "")
-            detail_desc = f"v{old_v} → v{new_v}" if old_v and new_v else "内容更新"
+            detail_desc = f"v{old_v} → v{new_v}" if old_v and new_v else i18n_t(lang, "change_skill_updated_detail")
         elif c["type"] == "memory_added":
             detail_desc = c["detail"].get("content", "")[:60]
         elif c["type"] == "memory_removed":
@@ -769,8 +784,8 @@ def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dic
     date_str = snapshot["timestamp"][:10]
     entry = {
         "date": date_str,
-        "title": " · ".join(summary_parts) if summary_parts else "进化更新",
-        "summary": f"本次共检测到 {len(changes)} 项变更",
+        "title": " · ".join(summary_parts) if summary_parts else i18n_t(lang, "change_title_fallback"),
+        "summary": i18n_t(lang, "change_summary", n=len(changes)),
         "changes": change_details,
         "has_gap": diff_result.get("has_gap", False),
         "future": False,
@@ -806,31 +821,36 @@ def hash_content(text: str) -> str:
 # ─── 主入口 ───────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Hermes 进化日志生成器")
+    parser = argparse.ArgumentParser(description="Hermes Evolution Log Generator (生成器)")
     parser.add_argument("--hermes-home", default=str(get_hermes_home()),
-                        help="Hermes 数据目录路径")
+                        help="Hermes data directory path (数据目录路径)")
     parser.add_argument("--output-dir", default=str(get_project_dir() / "output"),
-                        help="输出目录")
+                        help="Output directory (输出目录)")
     parser.add_argument("--baseline", action="store_true",
-                        help="创建基线快照（不产生变更记录）")
+                        help="Create baseline snapshot (no change records)")
     parser.add_argument("--full-rebuild", action="store_true",
-                        help="全量重写 HTML（压缩旧记录）")
+                        help="Full rebuild HTML (trim old records)")
+    parser.add_argument("--lang", choices=["zh", "en"], default=None,
+                        help="Output language: zh or en (default: EVOLUTION_LANG env or zh)")
     args = parser.parse_args()
+
+    lang = resolve_lang(args.lang)
+    i18n_dict = i18n_get(lang)
 
     hermes_home = Path(args.hermes_home)
     output_dir = Path(args.output_dir)
     snap_dir = snapshots_dir(output_dir)
 
     if not hermes_home.exists():
-        print(f"[ERROR] Hermes 数据目录不存在: {hermes_home}", file=sys.stderr)
-        print(f"        请用 --hermes-home 指定正确路径", file=sys.stderr)
+        print(f"[ERROR] Hermes data dir not found: {hermes_home}", file=sys.stderr)
+        print(f"        Use --hermes-home to specify correct path", file=sys.stderr)
         sys.exit(1)
 
-    print(f"[INFO] Hermes 数据目录: {hermes_home}")
-    print(f"[INFO] 输出目录: {output_dir}")
+    print(i18n_t(lang, "console_data_dir", path=hermes_home))
+    print(i18n_t(lang, "console_output_dir", path=output_dir))
 
     # 采集快照
-    print("[INFO] 采集当前快照...")
+    print(i18n_t(lang, "console_collecting"))
     snapshot = collect_snapshot(hermes_home)
     save_snapshot(snap_dir, snapshot)
 
@@ -839,7 +859,6 @@ def main():
 
     # 对比
     prev = latest_snapshot(snap_dir)
-    # 排除刚保存的：如果有两个以上，取倒数第二个
     all_snaps = sorted(snap_dir.glob("*.json"))
     if len(all_snaps) >= 2:
         prev_path = all_snaps[-2]
@@ -851,34 +870,33 @@ def main():
     diff_result = diff_snapshots(prev, snapshot)
 
     if args.baseline:
-        print("[INFO] 基线快照模式 — 不产生变更记录")
+        print(i18n_t(lang, "console_baseline"))
     elif args.full_rebuild:
-        print("[INFO] 全量重写模式")
+        print(i18n_t(lang, "console_rebuild"))
         timeline = trim_timeline(timeline)
     else:
-        # 增量模式
         if diff_result.get("is_baseline"):
-            print("[INFO] 这是首次快照（无历史数据），视为基线")
+            print(i18n_t(lang, "console_first_snap"))
         elif not diff_result.get("changes"):
-            print("[INFO] 无变更，跳过时间线更新")
+            print(i18n_t(lang, "console_no_changes"))
         else:
-            print(f"[INFO] 检测到 {len(diff_result['changes'])} 项变更")
-            append_timeline_entry(timeline, diff_result, snapshot)
+            print(i18n_t(lang, "console_changes", n=len(diff_result["changes"])))
+            append_timeline_entry(timeline, diff_result, snapshot, lang)
 
     # 保存时间线
     save_timeline(output_dir, timeline)
 
     # 渲染 HTML
     html_path = output_dir / "index.html"
-    render_html(snapshot, diff_result, timeline, html_path)
+    render_html(snapshot, diff_result, timeline, html_path, lang, i18n_dict)
 
     # 汇总
     print(f"\n{'='*50}")
     print(f"   Skills: {len(snapshot['skills'])}")
     print(f"   Memories: {len(snapshot.get('memories', []))}")
     print(f"   Cron Jobs: {len(snapshot.get('cron_jobs', []))}")
-    print(f"   时间线条目: {len(timeline)}")
-    print(f"   输出: {html_path}")
+    print(f"   时间线条目: {len(timeline)}" if lang == "zh" else f"   Timeline entries: {len(timeline)}")
+    print(f"   输出: {html_path}" if lang == "zh" else f"   Output: {html_path}")
     print(f"{'='*50}")
 
 

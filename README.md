@@ -98,11 +98,27 @@ hermes-evolution/
 - **动画效果** — 头像脉冲光晕、卡片悬停上浮、顶部渐变线展开
 - **折叠详情** — 时间线条目支持展开查看具体变更项
 
+## 🌐 多语言 (i18n)
+
+支持中文 (zh) 和英语 (en)：
+
+```bash
+python generate.py --lang en           # CLI 参数
+EVOLUTION_LANG=en python generate.py   # 环境变量
+```
+
+Docker 中通过 `EVOLUTION_LANG` 环境变量切换：
+
+```bash
+EVOLUTION_LANG=en docker compose --profile full up -d
+```
+
 ## 🔧 配置
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `HERMES_HOME` | `~/AppData/Local/hermes` | Hermes 数据目录 |
+| `EVOLUTION_LANG` | `zh` | 输出语言 (zh / en) |
 
 ## 📄 License
 

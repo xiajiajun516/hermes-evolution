@@ -6,12 +6,14 @@ LABEL org.opencontainers.image.source="https://github.com/xiajiajun516/hermes-ev
 
 WORKDIR /app
 
-# 安装依赖
+# 安装依赖和 cron
+RUN apt-get update && apt-get install -y --no-install-recommends cron && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制脚本
 COPY generate.py .
+COPY i18n.py .
 
 # 输出目录（挂载点）
 RUN mkdir -p /app/output/snapshots
