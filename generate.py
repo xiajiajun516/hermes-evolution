@@ -34,7 +34,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from i18n import get as i18n_get, t as i18n_t, resolve_lang
+from i18n import get as i18n_get, t as i18n_t, resolve_lang, TRANSLATIONS
 
 
 # ─── 路径工具 ────────────────────────────────────────────────────────────────
@@ -510,6 +510,27 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         }
         .footer a { color: #667eea; text-decoration: none; }
 
+        /* 语言切换 */
+        .lang-switcher {
+            position: absolute; top: 20px; right: 24px;
+            display: flex; gap: 4px; z-index: 10;
+        }
+        .lang-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+            color: #888; font-size: 0.8rem; padding: 6px 14px;
+            border-radius: 20px; cursor: pointer; transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        .lang-btn:hover { border-color: rgba(102,126,234,0.4); color: #ccc; }
+        .lang-btn.active {
+            background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.5);
+            color: #a5b4fc;
+        }
+        @media (max-width: 480px) {
+            .lang-switcher { top: 12px; right: 12px; }
+            .lang-btn { padding: 4px 10px; font-size: 0.75rem; }
+        }
+
         /* 响应式 */
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -524,55 +545,59 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </style>
 </head>
 <body>
+    <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="zh" onclick="switchLang('zh')" data-i18n-attr="textContent:lang_zh">中</button>
+        <button class="lang-btn" data-lang="en" onclick="switchLang('en')" data-i18n-attr="textContent:lang_en">EN</button>
+    </div>
     <div class="header">
         <div class="avatar">🧬</div>
         <h1>{{ title }}</h1>
-        <p class="subtitle">{{ i18n.page_subtitle }}</p>
-        <p class="update">{{ i18n.page_updated }}：{{ last_updated }}</p>
+        <p class="subtitle" data-i18n="page_subtitle">{{ i18n.page_subtitle }}</p>
+        <p class="update"><span data-i18n="page_updated">{{ i18n.page_updated }}</span>：{{ last_updated }}</p>
     </div>
 
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-number">{{ stats.skills }}</div>
-            <div class="stat-label">{{ i18n.stat_skills }}</div>
+            <div class="stat-label" data-i18n="stat_skills">{{ i18n.stat_skills }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.memories }}</div>
-            <div class="stat-label">{{ i18n.stat_memories }}</div>
+            <div class="stat-label" data-i18n="stat_memories">{{ i18n.stat_memories }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.cron_jobs }}</div>
-            <div class="stat-label">{{ i18n.stat_cron }}</div>
+            <div class="stat-label" data-i18n="stat_cron">{{ i18n.stat_cron }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-number">{{ stats.total_changes }}</div>
-            <div class="stat-label">{{ i18n.stat_changes }}</div>
+            <div class="stat-label" data-i18n="stat_changes">{{ i18n.stat_changes }}</div>
         </div>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>📈</span> {{ i18n.section_overview }}</h2>
+        <h2 class="section-title" data-i18n="section_overview"><span>📈</span> {{ i18n.section_overview }}</h2>
         <div class="evolution-card">
             <div class="evo-item">
                 <div class="evo-icon">🆕</div>
                 <div class="evo-number">{{ evolution.skills_added }}</div>
-                <div class="evo-label">{{ i18n.evo_skills_added }}</div>
+                <div class="evo-label" data-i18n="evo_skills_added">{{ i18n.evo_skills_added }}</div>
             </div>
             <div class="evo-item">
                 <div class="evo-icon">🔄</div>
                 <div class="evo-number">{{ evolution.skills_updated }}</div>
-                <div class="evo-label">{{ i18n.evo_skills_updated }}</div>
+                <div class="evo-label" data-i18n="evo_skills_updated">{{ i18n.evo_skills_updated }}</div>
             </div>
             <div class="evo-item">
                 <div class="evo-icon">🧠</div>
                 <div class="evo-number">{{ evolution.memories_changed }}</div>
-                <div class="evo-label">{{ i18n.evo_memories_changed }}</div>
+                <div class="evo-label" data-i18n="evo_memories_changed">{{ i18n.evo_memories_changed }}</div>
             </div>
         </div>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>🛠️</span> {{ i18n.section_skills }}</h2>
+        <h2 class="section-title" data-i18n="section_skills"><span>🛠️</span> {{ i18n.section_skills }}</h2>
         <div class="skills-grid">
             {% for skill in skills %}
             <div class="skill-card">
@@ -597,11 +622,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>🧠</span> {{ i18n.section_memories }}</h2>
+        <h2 class="section-title" data-i18n="section_memories"><span>🧠</span> {{ i18n.section_memories }}</h2>
         <div class="memories-grid">
             {% for mem in memories %}
             <div class="memory-card">
-                <span class="memory-type {{ mem.target }}">{{ i18n.memory_type_user if mem.target == "user" else i18n.memory_type_memory }}</span>
+                <span class="memory-type {{ mem.target }}" data-i18n="{{ 'memory_type_user' if mem.target == 'user' else 'memory_type_memory' }}">{{ i18n.memory_type_user if mem.target == "user" else i18n.memory_type_memory }}</span>
                 <p class="memory-content">{{ mem.content }}</p>
             </div>
             {% endfor %}
@@ -609,7 +634,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="section">
-        <h2 class="section-title"><span>📅</span> {{ i18n.section_timeline }}</h2>
+        <h2 class="section-title" data-i18n="section_timeline"><span>📅</span> {{ i18n.section_timeline }}</h2>
         <div class="timeline">
             {% for entry in timeline %}
             <div class="timeline-item{% if entry.future %} future{% endif %}{% if entry.has_gap %} gap{% endif %}">
@@ -618,13 +643,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                     <div class="timeline-title">
                         {{ entry.title }}
                         {% if entry.has_gap %}
-                        <span class="gap-warning">{{ i18n.timeline_gap_warning }}</span>
+                        <span class="gap-warning" data-i18n="timeline_gap_warning">{{ i18n.timeline_gap_warning }}</span>
                         {% endif %}
                     </div>
                     <p class="timeline-desc">{{ entry.summary }}</p>
                     {% if entry.changes %}
                     <details class="timeline-details">
-                        <summary>{{ i18n.timeline_expand }} ({{ entry.changes|length }} {{ i18n.change_count_label }})</summary>
+                        <summary><span data-i18n="timeline_expand">{{ i18n.timeline_expand }}</span> ({{ entry.changes|length }} <span data-i18n="change_count_label">{{ i18n.change_count_label }}</span>)</summary>
                         <ul>
                         {% for c in entry.changes %}
                             <li>
@@ -643,8 +668,44 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
 
     <div class="footer">
-        <p>Powered by <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> · {{ i18n.footer_powered }} {{ last_updated }}</p>
+        <p>Powered by <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> · <span data-i18n="footer_powered">{{ i18n.footer_powered }}</span> {{ last_updated }}</p>
     </div>
+
+    <script>
+    // ── Client-side i18n engine ──
+    const I18N = {{ i18n_all }};
+
+    function getLang() {
+        let lang = localStorage.getItem('evolution-lang');
+        if (lang && I18N[lang]) return lang;
+        return '{{ lang }}';
+    }
+
+    function switchLang(lang) {
+        localStorage.setItem('evolution-lang', lang);
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (I18N[lang] && I18N[lang][key]) {
+                const hasKids = el.children.length > 0 && el.querySelector('[data-i18n]');
+                if (!hasKids) el.textContent = I18N[lang][key];
+            }
+        });
+        document.querySelectorAll('[data-i18n-attr]').forEach(el => {
+            const parts = el.dataset.i18nAttr.split(':');
+            const attr = parts[0], key = parts[1];
+            if (I18N[lang] && I18N[lang][key]) el[attr] = I18N[lang][key];
+        });
+        document.querySelectorAll('.lang-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.lang === lang);
+        });
+        document.title = I18N[lang].page_title || document.title;
+    }
+
+    // Init on load
+    const savedLang = getLang();
+    if (savedLang !== '{{ lang }}') switchLang(savedLang);
+    </script>
 </body>
 </html>"""
 
@@ -670,6 +731,7 @@ def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], ou
 
     html = template.render(
         i18n=i18n_dict,
+        i18n_all=json.dumps(TRANSLATIONS, ensure_ascii=False),
         lang=lang,
         title=i18n_dict.get("page_title", "Hermes Evolution Log"),
         last_updated=snapshot["timestamp"][:19].replace("T", " "),
