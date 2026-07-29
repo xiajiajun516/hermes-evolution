@@ -585,6 +585,22 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             margin-bottom: 20px;
         }
         .archive-date { font-size: 0.8rem; color: #667eea; margin-bottom: 8px; }
+
+        /* 搜索框 */
+        .search-bar {
+            max-width: 400px; margin: 16px auto 0; padding: 0 20px;
+            position: relative;
+        }
+        .search-bar input {
+            width: 100%; padding: 10px 16px 10px 40px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 24px; color: #e0e0e0; font-size: 0.9rem;
+            font-family: inherit; outline: none; transition: all 0.3s ease;
+        }
+        .search-bar input:focus { border-color: rgba(102,126,234,0.5); background: rgba(255,255,255,0.08); }
+        .search-bar input::placeholder { color: #666; }
+        .search-icon { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; opacity: 0.5; }
+        .search-hidden { display: none !important; }
         .archive-title { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 8px; }
         .archive-summary { font-size: 0.9rem; color: #999; margin-bottom: 16px; }
         .archive-stats {
@@ -636,6 +652,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <h1>{{ title }}</h1>
         <p class="subtitle" data-i18n="page_subtitle">{{ i18n.page_subtitle }}</p>
         <p class="update"><span data-i18n="page_updated">{{ i18n.page_updated }}</span>{{ i18n.page_updated_sep }}{{ last_updated }}</p>
+    </div>
+
+    <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" data-i18n-attr="placeholder:search_placeholder"
+               placeholder="{{ i18n.search_placeholder }}" oninput="doSearch(this.value)" autocomplete="off">
     </div>
 
     <div class="tab-nav">
@@ -880,6 +902,27 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             });
         });
     })();
+
+    // ── Search ──
+    function doSearch(query) {
+        const q = query.toLowerCase().trim();
+        // Skills
+        document.querySelectorAll('#tab-skills .skill-card').forEach(card => {
+            const text = (card.textContent || '').toLowerCase();
+            card.classList.toggle('search-hidden', q !== '' && !text.includes(q));
+        });
+        // Memory
+        document.querySelectorAll('#tab-memory .memory-card').forEach(card => {
+            const text = (card.textContent || '').toLowerCase();
+            card.classList.toggle('search-hidden', q !== '' && !text.includes(q));
+        });
+        // Archive
+        document.querySelectorAll('#tab-archive .archive-card').forEach(card => {
+            const text = (card.textContent || '').toLowerCase();
+            const projectMatch = q === '' || (card.dataset.project || '').toLowerCase().includes(q);
+            card.classList.toggle('search-hidden', q !== '' && !text.includes(q) && !projectMatch);
+        });
+    }
 
     // ── Archive project filter ──
     function filterArchive(project) {

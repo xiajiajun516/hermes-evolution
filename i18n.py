@@ -59,6 +59,7 @@ TRANSLATIONS = {
         "archive_stats_cron": "定时任务",
         "archive_evo_points": "进化点",
         "archive_expand": "展开变更详情",
+        "search_placeholder": "搜索 Skills / 记忆 / 档案...",
     },
     "en": {
         # ── HTML page ──
@@ -118,6 +119,7 @@ TRANSLATIONS = {
         "archive_stats_cron": "Cron Jobs",
         "archive_evo_points": "Evolution Pts",
         "archive_expand": "Show changes",
+        "search_placeholder": "Search Skills / Memories / Archive...",
     },
 }
 
