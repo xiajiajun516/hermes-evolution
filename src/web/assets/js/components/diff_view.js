@@ -1,4 +1,6 @@
 // src/web/assets/js/components/diff_view.js
+import { t } from '../i18n.js';
+import { store } from '../store.js';
 
 function escapeHtml(text) {
   return (text || '')
@@ -134,9 +136,9 @@ function renderSideBySideTable(diffItems) {
       <thead>
         <tr>
           <th class="diff-col-num">#</th>
-          <th class="diff-col-content">Original (旧版本)</th>
+          <th class="diff-col-content">${t('diff_original', {}, lang)}</th>
           <th class="diff-col-num">#</th>
-          <th class="diff-col-content">Modified (新版本)</th>
+          <th class="diff-col-content">${t('diff_modified', {}, lang)}</th>
         </tr>
       </thead>
       <tbody>
@@ -189,6 +191,7 @@ function renderUnifiedTable(diffItems) {
  * 渲染 Diff 组件 HTML
  */
 export function renderDiffView(oldText = '', newText = '', mode = 'side-by-side') {
+  const lang = store.state.lang;
   const oldStr = typeof oldText === 'string' ? oldText : JSON.stringify(oldText, null, 2);
   const newStr = typeof newText === 'string' ? newText : JSON.stringify(newText, null, 2);
 
@@ -208,10 +211,10 @@ export function renderDiffView(oldText = '', newText = '', mode = 'side-by-side'
       <div class="diff-toolbar">
         <div class="diff-mode-switch">
           <button class="btn btn-sm diff-mode-btn ${mode === 'side-by-side' ? 'active' : ''}" data-mode="side-by-side">
-            Side-by-Side ↔️
+            ${t('diff_mode_sbs', {}, lang)} ↔️
           </button>
           <button class="btn btn-sm diff-mode-btn ${mode === 'unified' ? 'active' : ''}" data-mode="unified">
-            Unified 📄
+            ${t('diff_mode_unified', {}, lang)} 📄
           </button>
         </div>
         <div class="diff-legend">
@@ -247,15 +250,16 @@ export function bindDiffEvents(container, oldText, newText) {
  * 弹窗模式渲染 Visual Diff
  */
 export function openDiffModal(title, oldText, newText) {
+  const lang = store.state.lang;
   const modalContainer = document.getElementById('modal-container');
   if (!modalContainer) return;
 
   const modalHtml = `
-    <div class="modal-backdrop" id="diff-modal-backdrop">
-      <div class="modal-card diff-modal-card">
+    <div class="modal-backdrop">
+      <div class="modal-dialog modal-lg">
         <div class="modal-header">
-          <h3 class="modal-title">🔍 Visual Diff: ${escapeHtml(title)}</h3>
-          <button class="btn-close" id="diff-modal-close" title="关闭">&times;</button>
+          <h3>⚡ ${title || t('diff_modal_title', {}, lang)}</h3>
+          <button class="btn-close" id="diff-modal-close" title="${t('close', {}, lang)}">&times;</button>
         </div>
         <div class="modal-body" id="diff-modal-body">
           ${renderDiffView(oldText, newText, 'side-by-side')}

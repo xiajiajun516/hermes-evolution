@@ -50,7 +50,8 @@ function updateProjectSelector() {
     wrapper.style.display = 'block';
     // 动态填充选项
     const currentVal = store.state.selectedProject;
-    select.innerHTML = `<option value="all">所有项目 (All)</option>` +
+    const allLabel = t('all_projects', {}, lang);
+    select.innerHTML = `<option value="all">${allLabel} (All)</option>` +
       projects.map(p => `<option value="${p}" ${p === currentVal ? 'selected' : ''}>${p}</option>`).join('');
   }
 }
