@@ -45,6 +45,7 @@ function updateProjectSelector() {
   const wrapper = document.getElementById('project-wrapper');
   const select = document.getElementById('project-select');
   const projects = store.state.meta?.projects || [];
+  const lang = store.state.lang;
 
   if (projects.length > 0 && wrapper && select) {
     wrapper.style.display = 'block';
