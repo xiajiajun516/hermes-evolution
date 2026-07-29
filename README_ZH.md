@@ -63,6 +63,7 @@ hermes-evolution/
 └── docker-compose.yml       # Docker Compose 服务编排
 ```
 
-## 🌐 开源协议
+## 🌐 贡献指南与开源协议
 
-Powered by **Nous Hermes Agent**. 基于 MIT 协议开源。
+- **贡献指南**：欢迎阅读 [贡献指南](CONTRIBUTING_ZH.md) ([English Guide](CONTRIBUTING.md)) 参与项目建设。
+- **开源协议**：本项目基于 [MIT 协议](LICENSE) 开源，Powered by **Nous Hermes Agent**。

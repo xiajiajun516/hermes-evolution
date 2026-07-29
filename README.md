@@ -63,6 +63,7 @@ hermes-evolution/
 └── docker-compose.yml       # Docker Compose multi-service setup
 ```
 
-## 🌐 License & Attribution
+## 🌐 Contributing & License
 
-Powered by **Nous Hermes Agent**. Released under the MIT License.
+- **Contributing**: Check out our [Contributing Guide](CONTRIBUTING.md) ([中文版](CONTRIBUTING_ZH.md)) to get started.
+- **License**: Released under the [MIT License](LICENSE). Powered by **Nous Hermes Agent**.
