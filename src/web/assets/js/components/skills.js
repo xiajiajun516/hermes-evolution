@@ -9,6 +9,7 @@ export function renderSkills(state) {
   const selectedCategory = state.selectedCategory || 'all';
 
   // 统计各分类的数量
+  const categoriesSet = new Set();
   const categoryCounts = {};
   skills.forEach(s => {
     if (s.category) {

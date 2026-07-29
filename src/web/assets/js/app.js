@@ -118,13 +118,17 @@ function renderApp() {
 }
 
 function setupEventListeners() {
-  // 1. Tab 切换绑定
-  document.querySelectorAll('#app-tabs .tab-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const tab = e.currentTarget.getAttribute('data-tab');
-      store.setTab(tab);
+  // 1. Tab 切换绑定 (使用事件委托)
+  const tabsNav = document.getElementById('app-tabs');
+  if (tabsNav) {
+    tabsNav.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (btn) {
+        const tab = btn.getAttribute('data-tab');
+        if (tab) store.setTab(tab);
+      }
     });
-  });
+  }
 
   // 2. 搜索框防抖
   const searchInput = document.getElementById('global-search');
