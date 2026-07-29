@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制核心脚本与源码目录
+# 包含 src/web/ 目录下的静态网页资源（HTML/CSS/JS），供 Web 托管模式使用
 COPY generate.py i18n.py ./
 COPY src/ ./src/
 

@@ -24,6 +24,10 @@ TRANSLATIONS = {
         "footer_powered": "自动生成于",
         "memory_type_user": "用户",
         "memory_type_memory": "记忆",
+        "memory_type_project": "项目",
+        "memory_type_ops": "运维",
+        "memory_type_general": "通用",
+        "memory_source_scope_recall": "Scope Recall",
 
         # ── Timeline change summary ──
         "change_skill_added": "新增 {n} 个技能",
@@ -60,6 +64,11 @@ TRANSLATIONS = {
         "archive_evo_points": "进化点",
         "archive_expand": "展开变更详情",
         "search_placeholder": "搜索 Skills / 记忆 / 档案...",
+        "pagination_prev": "上一页",
+        "pagination_next": "下一页",
+        "text_expand": "展开全文",
+        "text_collapse": "收起",
+        "page_info": "第 {current} / {total} 页",
     },
     "en": {
         # ── HTML page ──
@@ -84,6 +93,10 @@ TRANSLATIONS = {
         "footer_powered": "Auto-generated at",
         "memory_type_user": "User",
         "memory_type_memory": "Memory",
+        "memory_type_project": "Project",
+        "memory_type_ops": "Ops",
+        "memory_type_general": "General",
+        "memory_source_scope_recall": "Scope Recall",
 
         # ── Timeline change summary ──
         "change_skill_added": "{n} skill(s) added",
@@ -120,6 +133,11 @@ TRANSLATIONS = {
         "archive_evo_points": "Evolution Pts",
         "archive_expand": "Show changes",
         "search_placeholder": "Search Skills / Memories / Archive...",
+        "pagination_prev": "Previous",
+        "pagination_next": "Next",
+        "text_expand": "Show more",
+        "text_collapse": "Show less",
+        "page_info": "Page {current} of {total}",
     },
 }
 

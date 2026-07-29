@@ -18,7 +18,7 @@ export const store = {
       memories: [],
       cron_jobs: []
     },
-    currentTab: 'dashboard',
+    currentTab: localStorage.getItem('hermes_tab') || 'dashboard',
     searchQuery: '',
     selectedProject: 'all',
     selectedCategory: 'all',
@@ -56,6 +56,7 @@ export const store = {
   setTab(tab) {
     if (this.state.currentTab === tab) return;
     this.state.currentTab = tab;
+    localStorage.setItem('hermes_tab', tab);
     this.notify();
   },
 

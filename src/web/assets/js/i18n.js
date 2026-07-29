@@ -31,10 +31,17 @@ export const TRANSLATIONS = {
     skill_version: "版本",
     skill_path: "路径",
     skill_hash: "哈希",
+    skill_modal_description: "描述",
+    skill_modal_tags: "标签",
+    skill_modal_details: "详细信息",
 
     memory_type_all: "全部",
     memory_type_user: "用户",
     memory_type_memory: "记忆",
+    memory_type_project: "项目",
+    memory_type_ops: "运维",
+    memory_type_general: "通用",
+    memory_source_scope_recall: "Scope Recall",
     memory_empty: "暂无相关记忆记录",
 
     archive_empty_title: "暂无进化记录",
@@ -52,6 +59,12 @@ export const TRANSLATIONS = {
     search_empty: "未搜索到匹配的内容",
     loading: "加载数据中...",
     error_loading: "数据加载失败，请刷新页面重试",
+
+    pagination_prev: "上一页",
+    pagination_next: "下一页",
+    text_expand: "展开全文",
+    text_collapse: "收起",
+    page_info: "第 {current} / {total} 页",
 
     all_projects: "所有项目",
     diff_original: "Original (旧版本)",
@@ -109,10 +122,17 @@ export const TRANSLATIONS = {
     skill_version: "Version",
     skill_path: "Path",
     skill_hash: "Hash",
+    skill_modal_description: "Description",
+    skill_modal_tags: "Tags",
+    skill_modal_details: "Details",
 
     memory_type_all: "All",
     memory_type_user: "User",
     memory_type_memory: "Memory",
+    memory_type_project: "Project",
+    memory_type_ops: "Ops",
+    memory_type_general: "General",
+    memory_source_scope_recall: "Scope Recall",
     memory_empty: "No matching memory records",
 
     archive_empty_title: "No Evolution Log Yet",
@@ -130,6 +150,12 @@ export const TRANSLATIONS = {
     search_empty: "No matching items found",
     loading: "Loading data...",
     error_loading: "Failed to load data, please refresh and retry",
+
+    pagination_prev: "Previous",
+    pagination_next: "Next",
+    text_expand: "Show more",
+    text_collapse: "Show less",
+    page_info: "Page {current} of {total}",
 
     all_projects: "All Projects",
     diff_original: "Original (Old)",

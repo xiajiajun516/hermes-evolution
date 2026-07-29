@@ -3,6 +3,11 @@ import { t } from '../i18n.js';
 import { store } from '../store.js';
 import { openDiffModal } from './diff_view.js';
 
+let currentPage = 1;
+const pageSize = 5;
+let lastProject = null;
+let lastSearchQuery = null;
+
 const expandedItems = new Set();
 const changeDataMap = new Map();
 
@@ -36,11 +41,39 @@ function formatEntrySummary(entry, lang) {
   return count > 0 ? t('change_summary', { n: count }, lang) : (entry.summary || '');
 }
 
+function renderPagination(currentPage, totalPages, lang) {
+  if (totalPages <= 1) return '';
+
+  let pageBtns = '';
+  for (let i = 1; i <= totalPages; i++) {
+    pageBtns += `<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  return `
+    <div class="pagination-bar">
+      <button class="page-btn prev-page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
+        ${t('pagination_prev', {}, lang)}
+      </button>
+      <span class="page-info">${t('page_info', { current: currentPage, total: totalPages }, lang)}</span>
+      ${pageBtns}
+      <button class="page-btn next-page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
+        ${t('pagination_next', {}, lang)}
+      </button>
+    </div>
+  `;
+}
+
 export function renderArchive(state) {
   const lang = state.lang;
   const timeline = state.timeline || [];
   const searchQuery = (state.searchQuery || '').toLowerCase().trim();
   const selectedProject = state.selectedProject || 'all';
+
+  if (lastProject !== selectedProject || lastSearchQuery !== searchQuery) {
+    currentPage = 1;
+    lastProject = selectedProject;
+    lastSearchQuery = searchQuery;
+  }
 
   changeDataMap.clear();
 
@@ -76,11 +109,19 @@ export function renderArchive(state) {
     `;
   }
 
+  const totalPages = Math.ceil(filteredTimeline.length / pageSize) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const pagedTimeline = filteredTimeline.slice(startIndex, startIndex + pageSize);
+
   return `
     <div class="archive-view">
       <div class="timeline">
-        ${filteredTimeline.map((entry, index) => {
-          const itemKey = `${entry.date}_${index}`;
+        ${pagedTimeline.map((entry, index) => {
+          const globalIndex = startIndex + index;
+          const itemKey = `${entry.date}_${globalIndex}`;
           const isExpanded = expandedItems.has(itemKey);
           const hasChanges = entry.changes && entry.changes.length > 0;
 
@@ -113,7 +154,7 @@ export function renderArchive(state) {
                         if (c.type.includes('added')) badgeClass = 'badge-green';
                         if (c.type.includes('removed')) badgeClass = 'badge-red';
 
-                        const changeId = `change_${index}_${cIdx}`;
+                        const changeId = `change_${globalIndex}_${cIdx}`;
                         changeDataMap.set(changeId, c);
 
                         return `
@@ -137,6 +178,7 @@ export function renderArchive(state) {
           `;
         }).join('')}
       </div>
+      ${renderPagination(currentPage, totalPages, lang)}
     </div>
   `;
 }
@@ -165,6 +207,19 @@ export function bindArchiveEvents(container) {
         const newText = change.new_content || '';
         const title = `${change.type}: ${change.name}`;
         openDiffModal(title, oldText, newText);
+      }
+    });
+  });
+
+  // 3. 分页按钮绑定
+  container.querySelectorAll('.pagination-bar .page-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      if (e.currentTarget.hasAttribute('disabled')) return;
+      const page = parseInt(e.currentTarget.getAttribute('data-page'), 10);
+      if (page && page !== currentPage) {
+        currentPage = page;
+        store.notify();
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });

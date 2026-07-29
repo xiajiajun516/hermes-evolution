@@ -140,6 +140,33 @@ def collect_memory(hermes_home: Path) -> list[dict]:
         except Exception as e:
             print(f"[WARN] state.db memory 读取失败: {e}", file=sys.stderr)
 
+    # 方式4: scope-recall/memory.sqlite3
+    scope_db = hermes_home / "scope-recall" / "memory.sqlite3"
+    if scope_db.exists():
+        try:
+            conn = sqlite3.connect(str(scope_db))
+            conn.row_factory = sqlite3.Row
+            tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+            if "memories" in tables:
+                cur = conn.execute(
+                    "SELECT id, scope_id, target, content, source, created_at, updated_at "
+                    "FROM memories ORDER BY target, created_at"
+                )
+                for r in cur.fetchall():
+                    memories.append({
+                        "id": r["id"],
+                        "scope_id": r["scope_id"],
+                        "target": r["target"],
+                        "content": r["content"][:200] + ("..." if len(r["content"]) > 200 else ""),
+                        "source": "scope-recall",
+                        "created_at": r["created_at"],
+                        "updated_at": r["updated_at"],
+                        "content_hash": hash_content(r["content"]),
+                    })
+            conn.close()
+        except Exception as e:
+            print(f"[WARN] scope-recall memory 读取失败: {e}", file=sys.stderr)
+
     return memories
 
 

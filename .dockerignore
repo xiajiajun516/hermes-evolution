@@ -1,6 +1,26 @@
+# 构建产物 — 容器内生成，无需打包进镜像
 output/
+
+# 环境配置
 .env
+
+# Git 仓库
 .git/
+
+# Python 虚拟环境
 .venv/
 __pycache__/
 *.pyc
+
+# 测试文件
+tests/
+
+# 日志
+*.log
+
+# Hermes 本地数据
+.hermes/
+
+# Docker 相关文件（镜像自身不需要）
+docker-compose.yml
+Dockerfile
