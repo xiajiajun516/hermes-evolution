@@ -11,14 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends cron && rm -rf 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制脚本
-COPY generate.py .
-COPY i18n.py .
+# 复制核心脚本与源码目录
+COPY generate.py i18n.py ./
+COPY src/ ./src/
 
 # 输出目录（挂载点）
 RUN mkdir -p /app/output/snapshots
 
-# 默认命令：每天运行一次
-# 用法：
-#   docker run --rm -v ~/AppData/Local/hermes:/hermes:ro -v ./output:/app/output hermes-evolution
-CMD ["sh", "-c", "python generate.py --hermes-home /hermes --output-dir /app/output"]
+# 默认命令：从容器生成进化快照
+CMD ["python", "generate.py", "--hermes-home", "/hermes", "--output-dir", "/app/output"]
