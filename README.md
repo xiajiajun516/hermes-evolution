@@ -29,20 +29,12 @@
 # 安装依赖
 pip install -r requirements.txt
 
-# 首次运行（创建基线快照，不产生变更记录）
-python generate.py --baseline
+# 一键更新 (One-click update)
+./update.sh
 
-# 每日增量更新（自动检测项目名）
-python generate.py
-
-# 指定项目名
-python generate.py --project my-project
-
-# 全量重写（压缩 3 个月前记录）
-python generate.py --full-rebuild
-
-# 英文输出
-python generate.py --lang en
+# 支持透传 CLI 参数
+./update.sh --baseline      # 首次建立基线
+./update.sh --full-rebuild # 全量重写与压缩
 ```
 
 输出：`output/index.html`，直接用浏览器打开即可。

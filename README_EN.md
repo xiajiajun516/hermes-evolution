@@ -29,20 +29,12 @@ A beautiful visual HTML dashboard that automatically collects Hermes Agent capab
 # Install dependencies
 pip install -r requirements.txt
 
-# First run (create baseline, no change records)
-python generate.py --baseline
+# One-click update
+./update.sh
 
-# Daily incremental update (auto-detects project name)
-python generate.py
-
-# Specify project name
-python generate.py --project my-project
-
-# English output
-python generate.py --lang en
-
-# Full rebuild (prune old records)
-python generate.py --full-rebuild
+# Pass through CLI flags
+./update.sh --baseline      # Establish baseline snapshot
+./update.sh --full-rebuild # Perform full rebuild & compression
 ```
 
 Output: `output/index.html` — open directly in any browser.
