@@ -1,5 +1,7 @@
 # 🧬 Hermes Evolution Log
 
+[![EN](https://img.shields.io/badge/README-EN-blue)](README_EN.md)
+
 > AI 进化可视化 — 追踪 Hermes Agent 的 Skills、Memory、Cron Jobs 进化历程
 
 一个漂亮的可视化 HTML 仪表盘，每日自动采集 Hermes Agent 的能力数据，通过快照对比生成进化记录。

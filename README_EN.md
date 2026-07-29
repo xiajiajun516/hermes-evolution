@@ -1,5 +1,7 @@
 # 🧬 Hermes Evolution Log
 
+[![中文](https://img.shields.io/badge/README-中文-red)](README.md)
+
 > AI Evolution Visualization — Track the growth of Hermes Agent's Skills, Memory, and Cron Jobs
 
 A beautiful visual HTML dashboard that automatically collects Hermes Agent capability data daily and generates evolution records through snapshot diffing.
