@@ -1,98 +1,68 @@
 # 🧬 Hermes Evolution Log
 
-[![EN](https://img.shields.io/badge/README-EN-blue)](README_EN.md)
+[![中文](https://img.shields.io/badge/README-中文-red)](README_ZH.md)
 
-> AI 进化可视化 — 追踪 Hermes Agent 的 Skills、Memory、Cron Jobs 进化历程
+> AI Evolution Observability & Dashboard — Track the growth of Hermes Agent's Skills, Memory, and Cron Jobs
 
-一个漂亮的可视化 HTML 仪表盘，每日自动采集 Hermes Agent 的能力数据，通过快照对比生成进化记录。
+A sleek, responsive visual HTML dashboard that automatically captures Hermes Agent capability data daily, performs snapshot diffing, and displays versioned evolution history.
 
-## ✨ 功能
+## ✨ Key Features
 
-| 功能 | 说明 |
-|------|------|
-| 📊 **仪表盘** | Skills / Memory / Cron Jobs 数量 + 累计进化次数 + 进化概览 |
-| 🛠️ **Skills Tab** | 独立 Tab，自适应网格展示所有已掌握的 Skills，含分类标签和描述 |
-| 🧠 **记忆 Tab** | 独立 Tab，按类型（user/memory）分类展示持久记忆 |
-| 📚 **进化档案** | 卡片式浏览每次进化记录，含统计条、自动标签、项目归属、折叠详情 |
-| 🔍 **全局搜索** | 实时筛选 Skills / Memory / Archive，按名称、描述、内容、项目名搜索 |
-| 🌐 **客户端语言切换** | 页面按钮实时中/英切换，刷新后记住选择 |
-| 📦 **项目归属** | `--project` 自动检测 git remote，档案支持按项目筛选 |
-| 🔄 **基线策略** | 首次快照不产生变更记录，避免全量误报 |
-| 🗜️ **定期压缩** | 3 个月前的记录自动只保留摘要，控制页面体积 |
-| ⚠️ **容错补偿** | 快照间隔超过 1 天时标注"合并变更"警告 |
+| Feature | Description |
+|---------|-------------|
+| 📊 **Dashboard** | Real-time counts of Skills, Memory, Cron Jobs & cumulative evolution metrics |
+| 🛠️ **Skills Tab** | Responsive grid of all mastered skills with smart category chips and counts |
+| 🧠 **Memory Tab** | Filterable persistent memories categorized by target (`user` / `memory`) |
+| 📚 **Evolution Archive** | Interactive timeline with collapsible details and project filtering |
+| 🔍 **Visual Side-by-Side Diff** | Built-in LCS Diff viewer to highlight exact text additions & removals |
+| 🌐 **i18n Multi-language** | Client-side real-time English/Chinese switching, remembers user choice |
+| 📦 **Decoupled REST API** | Standardized JSON API (`output/api/v1/`) + zero-dependency static build |
+| 🚀 **One-Click Script** | Single `./update.sh` script to perform incremental updates & rebuilds |
+| 🐳 **Docker Ready** | Production-ready Docker Compose setup with scheduled daily cron updates |
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 本地运行
+### Local Setup
 
 ```bash
-# 安装依赖
+# Install Python dependencies
 pip install -r requirements.txt
 
-# 一键更新 (One-click update)
+# Run one-click update
 ./update.sh
 
-# 支持透传 CLI 参数
-./update.sh --baseline      # 首次建立基线
-./update.sh --full-rebuild # 全量重写与压缩
+# Additional CLI Flags
+./update.sh --baseline      # Establish baseline snapshot (no diff output)
+./update.sh --full-rebuild # Perform full rebuild & compression
+./update.sh --project foo  # Specify explicit project label
 ```
 
-输出：`output/index.html`，直接用浏览器打开即可。
+Output dashboard: `output/index.html` — open directly in any browser.
 
-### Docker
+### Docker Deployment
 
 ```bash
-# 完整模式：定时更新 + Web 服务
+# Full Mode: Auto-updates daily at 02:00 + Web Server (Port 57621)
 docker compose --profile full up -d
-# 每天凌晨 2 点自动更新，周日凌晨 3 点全量重写
-# 默认端口 57621，通过 PORT 环境变量修改
 ```
 
-## 📁 项目结构
+Access the dashboard live at `http://localhost:57621`.
+
+## 📁 Repository Structure
 
 ```
 hermes-evolution/
-├── generate.py              # 核心脚本：采集 + diff + 渲染
-├── i18n.py                  # 中英翻译字典
-├── Dockerfile               # Docker 镜像
-├── docker-compose.yml       # 多服务编排
-├── requirements.txt         # Python 依赖
-├── output/                  # 输出目录
-│   ├── index.html           # 生成的进化日志页面
-│   ├── timeline.json        # 时间线数据（持久化）
-│   └── snapshots/           # 每日快照（JSON 时间戳命名）
-└── README.md
+├── update.sh                # One-click update shell script
+├── generate.py              # CLI entry point
+├── i18n.py                  # Core translation dictionary
+├── src/                     # Core Python & Web modules
+│   ├── core/                # Collector, Diff Engine & Exporter
+│   └── web/                 # Vanilla JS ES Modules & Theme UI
+├── output/                  # Output static dashboard & JSON APIs
+├── Dockerfile               # Docker container definition
+└── docker-compose.yml       # Docker Compose multi-service setup
 ```
 
-## 🎨 设计
+## 🌐 License & Attribution
 
-- **暗色主题** — 深色渐变背景，紫蓝色调
-- **4 Tab 布局** — 仪表盘 / Skills / 记忆 / 档案
-- **响应式** — 桌面 4 列统计 → 平板 2 列 → 手机 1 列
-- **动画效果** — 头像脉冲光晕、卡片悬停上浮
-- **档案卡片** — 项目标签、统计条、自动关键词标签、折叠详情
-
-## 🌐 多语言 (i18n)
-
-支持中文 (zh) 和英语 (en)：
-
-```bash
-python generate.py --lang en           # CLI 参数
-EVOLUTION_LANG=en python generate.py   # 环境变量
-```
-
-页面内置语言切换按钮，刷新后自动恢复选择。
-
-## 🔧 配置
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--hermes-home` | `~/AppData/Local/hermes` | Hermes 数据目录 |
-| `--lang` | `zh` | 输出语言 (zh / en) |
-| `--project` | 自动检测 git remote | 项目名，用于档案分组 |
-| `EVOLUTION_LANG` | `zh` | 环境变量方式设置语言 |
-| `PORT` | `57621` | Docker Web 服务端口 |
-
-## 📄 License
-
-MIT
+Powered by **Nous Hermes Agent**. Released under the MIT License.
