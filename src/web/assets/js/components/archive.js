@@ -6,6 +6,36 @@ import { openDiffModal } from './diff_view.js';
 const expandedItems = new Set();
 const changeDataMap = new Map();
 
+function formatChangeType(type, lang) {
+  const key = `type_${type}`;
+  const translated = t(key, {}, lang);
+  return translated !== key ? translated : type;
+}
+
+function formatEntryTitle(entry, lang) {
+  if (!entry.changes || entry.changes.length === 0) {
+    return entry.title || t('change_title_fallback', {}, lang);
+  }
+  const counts = {};
+  entry.changes.forEach(c => {
+    counts[c.type] = (counts[c.type] || 0) + 1;
+  });
+  const parts = [];
+  if (counts.skill_added) parts.push(t('change_skill_added', { n: counts.skill_added }, lang));
+  if (counts.skill_updated) parts.push(t('change_skill_updated', { n: counts.skill_updated }, lang));
+  if (counts.skill_removed) parts.push(t('change_skill_removed', { n: counts.skill_removed }, lang));
+  if (counts.memory_added) parts.push(t('change_memory_added', { n: counts.memory_added }, lang));
+  if (counts.memory_removed) parts.push(t('change_memory_removed', { n: counts.memory_removed }, lang));
+  if (counts.cron_added) parts.push(t('change_cron_added', { n: counts.cron_added }, lang));
+  if (counts.cron_removed) parts.push(t('change_cron_removed', { n: counts.cron_removed }, lang));
+  return parts.length > 0 ? parts.join(' · ') : entry.title;
+}
+
+function formatEntrySummary(entry, lang) {
+  const count = entry.changes ? entry.changes.length : 0;
+  return count > 0 ? t('change_summary', { n: count }, lang) : (entry.summary || '');
+}
+
 export function renderArchive(state) {
   const lang = state.lang;
   const timeline = state.timeline || [];
@@ -64,10 +94,10 @@ export function renderArchive(state) {
                     ${entry.project ? `<span class="badge badge-purple" style="margin-left: 0.5rem;">${entry.project}</span>` : ''}
                     ${entry.has_gap ? `<span class="badge badge-orange" style="margin-left: 0.5rem;">${t('timeline_gap_warning', {}, lang)}</span>` : ''}
                   </div>
-                  <span class="badge badge-blue">${entry.summary || ''}</span>
+                  <span class="badge badge-blue">${formatEntrySummary(entry, lang)}</span>
                 </div>
 
-                <div class="timeline-summary" style="font-weight: 500; font-size: 1.05rem;">${entry.title}</div>
+                <div class="timeline-summary" style="font-weight: 500; font-size: 1.05rem;">${formatEntryTitle(entry, lang)}</div>
 
                 ${hasChanges ? `
                   <div style="margin-top: 0.75rem;">
@@ -89,7 +119,7 @@ export function renderArchive(state) {
                         return `
                           <div class="change-item" style="justify-content: space-between;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                              <span class="badge ${badgeClass}">${c.type}</span>
+                              <span class="badge ${badgeClass}">${formatChangeType(c.type, lang)}</span>
                               <strong>${c.name}</strong>
                               ${c.desc ? `<span class="change-item-desc">(${c.desc})</span>` : ''}
                             </div>
