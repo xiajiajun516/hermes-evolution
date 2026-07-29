@@ -54,6 +54,24 @@ def get_project_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def detect_project(project_dir: Path | None = None) -> str:
+    """自动检测项目名：优先 git remote origin 的 repo 名，否则用目录名"""
+    import subprocess as sp
+    d = project_dir or get_project_dir()
+    try:
+        r = sp.run(["git", "remote", "get-url", "origin"],
+                   cwd=str(d), capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            url = r.stdout.strip()
+            # Extract repo name from git URL
+            name = url.rstrip("/").split("/")[-1].removesuffix(".git")
+            if name:
+                return name
+    except Exception:
+        pass
+    return d.name
+
+
 # ─── 数据采集 ────────────────────────────────────────────────────────────────
 
 def collect_skills(hermes_home: Path) -> list[dict]:
@@ -545,7 +563,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         .tab-btn:hover { color: #ccc; }
         .tab-btn.active { color: #a5b4fc; border-bottom-color: #667eea; }
         .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
+        .tab-panel.active { display: block; margin-top: 30px; }
 
         /* 档案卡片 */
         .archive-grid {
@@ -559,6 +577,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         .archive-card:hover {
             transform: translateY(-2px); border-color: rgba(102,126,234,0.3);
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .archive-project {
+            color: #f093fb; font-weight: 500;
+        }
+        .archive-filter {
+            margin-bottom: 20px;
         }
         .archive-date { font-size: 0.8rem; color: #667eea; margin-bottom: 8px; }
         .archive-title { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 8px; }
@@ -611,11 +635,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <div class="avatar">🧬</div>
         <h1>{{ title }}</h1>
         <p class="subtitle" data-i18n="page_subtitle">{{ i18n.page_subtitle }}</p>
-        <p class="update"><span data-i18n="page_updated">{{ i18n.page_updated }}</span>：{{ last_updated }}</p>
+        <p class="update"><span data-i18n="page_updated">{{ i18n.page_updated }}</span>{{ i18n.page_updated_sep }}{{ last_updated }}</p>
     </div>
 
     <div class="tab-nav">
         <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')" data-i18n="tab_dashboard">{{ i18n.tab_dashboard }}</button>
+        <button class="tab-btn" data-tab="skills" onclick="switchTab('skills')" data-i18n="section_skills">{{ i18n.section_skills }}</button>
+        <button class="tab-btn" data-tab="memory" onclick="switchTab('memory')" data-i18n="section_memories">{{ i18n.section_memories }}</button>
         <button class="tab-btn" data-tab="archive" onclick="switchTab('archive')" data-i18n="tab_archive">{{ i18n.tab_archive }}</button>
     </div>
 
@@ -659,9 +685,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
         </div>
     </div>
+    </div><!-- /tab-dashboard -->
 
+    <div id="tab-skills" class="tab-panel">
     <div class="section">
-        <h2 class="section-title" data-i18n="section_skills"><span>🛠️</span> {{ i18n.section_skills }}</h2>
         <div class="skills-grid">
             {% for skill in skills %}
             <div class="skill-card">
@@ -684,9 +711,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             {% endfor %}
         </div>
     </div>
+    </div><!-- /tab-skills -->
 
+    <div id="tab-memory" class="tab-panel">
     <div class="section">
-        <h2 class="section-title" data-i18n="section_memories"><span>🧠</span> {{ i18n.section_memories }}</h2>
         <div class="memories-grid">
             {% for mem in memories %}
             <div class="memory-card">
@@ -696,15 +724,25 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             {% endfor %}
         </div>
     </div>
-    </div><!-- /tab-dashboard -->
+    </div><!-- /tab-memory -->
 
     <div id="tab-archive" class="tab-panel">
     <div class="section">
         {% if timeline %}
+        {% if projects|length > 1 %}
+        <div class="archive-filter">
+            <select onchange="filterArchive(this.value)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#ccc;padding:6px 12px;border-radius:8px;font-family:inherit;">
+                <option value="all">All Projects</option>
+                {% for p in projects %}
+                <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <div class="archive-grid">
             {% for entry in timeline %}
-            <div class="archive-card">
-                <div class="archive-date">{{ entry.date }}</div>
+            <div class="archive-card" data-project="{{ entry.project }}">
+                <div class="archive-date">{{ entry.date }}{% if entry.project %} · <span class="archive-project">{{ entry.project }}</span>{% endif %}</div>
                 <h3 class="archive-title">{{ entry.title }}</h3>
                 <p class="archive-summary">{{ entry.summary }}</p>
                 <div class="archive-stats">
@@ -842,6 +880,21 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             });
         });
     })();
+
+    // ── Archive project filter ──
+    function filterArchive(project) {
+        document.querySelectorAll('.archive-card').forEach(card => {
+            card.style.display = (project === 'all' || card.dataset.project === project) ? '' : 'none';
+        });
+        try { localStorage.setItem('evolution-project-filter', project); } catch(e) {}
+    }
+    // Restore filter on load
+    (function() {
+        try {
+            const f = localStorage.getItem('evolution-project-filter');
+            if (f && f !== 'all') { const sel = document.querySelector('.archive-filter select'); if (sel) { sel.value = f; filterArchive(f); } }
+        } catch(e) {}
+    })();
     </script>
 </body>
 </html>"""
@@ -849,7 +902,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
 # ─── HTML 渲染 ────────────────────────────────────────────────────────────────
 
-def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], output_path: Path, lang: str, i18n_dict: dict):
+def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], output_path: Path, lang: str, i18n_dict: dict, project: str = ""):
     """渲染最终 HTML"""
     try:
         from jinja2 import Template
@@ -865,6 +918,9 @@ def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], ou
 
     # 统计进化数据
     evolution = compute_evolution_stats(timeline_data)
+
+    # 提取所有项目列表
+    projects = sorted(set(entry.get("project", "") for entry in timeline_data if entry.get("project")))
 
     html = template.render(
         i18n=i18n_dict,
@@ -882,6 +938,8 @@ def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], ou
         skills=skills,
         memories=memories,
         timeline=timeline_data,
+        projects=projects,
+        project=project,
     )
 
     output_path.write_text(html, encoding="utf-8")
@@ -926,7 +984,7 @@ def save_timeline(output_dir: Path, data: list[dict]):
     timeline_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dict, lang: str):
+def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dict, lang: str, project: str = ""):
     """将 diff 结果追加为时间线条目"""
     if diff_result.get("is_baseline"):
         return
@@ -983,6 +1041,7 @@ def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dic
     date_str = snapshot["timestamp"][:10]
     entry = {
         "date": date_str,
+        "project": project,
         "title": " · ".join(summary_parts) if summary_parts else i18n_t(lang, "change_title_fallback"),
         "summary": i18n_t(lang, "change_summary", n=len(changes)),
         "changes": change_details,
@@ -1031,10 +1090,13 @@ def main():
                         help="Full rebuild HTML (trim old records)")
     parser.add_argument("--lang", choices=["zh", "en"], default=None,
                         help="Output language: zh or en (default: EVOLUTION_LANG env or zh)")
+    parser.add_argument("--project", default=None,
+                        help="Project name for archive grouping (auto-detected from git remote)")
     args = parser.parse_args()
 
     lang = resolve_lang(args.lang)
     i18n_dict = i18n_get(lang)
+    project = args.project or detect_project()
 
     hermes_home = Path(args.hermes_home)
     output_dir = Path(args.output_dir)
@@ -1080,14 +1142,14 @@ def main():
             print(i18n_t(lang, "console_no_changes"))
         else:
             print(i18n_t(lang, "console_changes", n=len(diff_result["changes"])))
-            append_timeline_entry(timeline, diff_result, snapshot, lang)
+            append_timeline_entry(timeline, diff_result, snapshot, lang, project)
 
     # 保存时间线
     save_timeline(output_dir, timeline)
 
     # 渲染 HTML
     html_path = output_dir / "index.html"
-    render_html(snapshot, diff_result, timeline, html_path, lang, i18n_dict)
+    render_html(snapshot, diff_result, timeline, html_path, lang, i18n_dict, project)
 
     # 汇总
     print(f"\n{'='*50}")
