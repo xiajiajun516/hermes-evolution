@@ -58,6 +58,7 @@ from src.core.diff_engine import (
     summarize_snapshot,
     trim_timeline,
 )
+from src.core.exporter import build_meta, export_data
 
 
 # ─── 路径工具 ────────────────────────────────────────────────────────────────
@@ -827,6 +828,10 @@ def main():
 
     # 保存时间线
     save_timeline(output_dir, timeline)
+
+    # 导出 REST API 数据
+    meta = build_meta(snapshot, timeline, lang=lang, project=project)
+    export_data(output_dir, timeline, snapshot, meta=meta, lang=lang, project=project)
 
     # 渲染 HTML
     html_path = output_dir / "index.html"
