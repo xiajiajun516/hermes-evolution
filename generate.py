@@ -531,6 +531,64 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             .lang-btn { padding: 4px 10px; font-size: 0.75rem; }
         }
 
+        /* Tab 导航 */
+        .tab-nav {
+            max-width: 1000px; margin: 0 auto; padding: 0 20px;
+            display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .tab-btn {
+            background: none; border: none; color: #888;
+            font-size: 0.95rem; padding: 12px 24px; cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        .tab-btn:hover { color: #ccc; }
+        .tab-btn.active { color: #a5b4fc; border-bottom-color: #667eea; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* 档案卡片 */
+        .archive-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .archive-card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px; padding: 24px; transition: all 0.3s ease;
+        }
+        .archive-card:hover {
+            transform: translateY(-2px); border-color: rgba(102,126,234,0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .archive-date { font-size: 0.8rem; color: #667eea; margin-bottom: 8px; }
+        .archive-title { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 8px; }
+        .archive-summary { font-size: 0.9rem; color: #999; margin-bottom: 16px; }
+        .archive-stats {
+            display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;
+            font-size: 0.8rem; color: #888;
+        }
+        .archive-stat { white-space: nowrap; }
+        .archive-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .archive-tag {
+            font-size: 0.7rem; padding: 3px 10px;
+            background: rgba(102,126,234,0.12); border-radius: 12px; color: #a5b4fc;
+        }
+        .archive-details {
+            margin-top: 8px; padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: #777;
+        }
+        .archive-details summary { cursor: pointer; color: #888; }
+        .archive-details summary:hover { color: #a5b4fc; }
+        .archive-details ul { margin-top: 8px; padding-left: 16px; }
+        .archive-details li { margin-bottom: 4px; }
+
+        /* 空状态 */
+        .archive-empty { text-align: center; padding: 80px 20px; }
+        .empty-illustration { margin-bottom: 24px; opacity: 0.3; }
+        .archive-empty h3 { font-size: 1.3rem; color: #aaa; margin-bottom: 8px; }
+        .archive-empty p { font-size: 0.9rem; color: #666; max-width: 400px; margin: 0 auto; }
+
         /* 响应式 */
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -556,6 +614,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <p class="update"><span data-i18n="page_updated">{{ i18n.page_updated }}</span>：{{ last_updated }}</p>
     </div>
 
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')" data-i18n="tab_dashboard">{{ i18n.tab_dashboard }}</button>
+        <button class="tab-btn" data-tab="archive" onclick="switchTab('archive')" data-i18n="tab_archive">{{ i18n.tab_archive }}</button>
+    </div>
+
+    <div id="tab-dashboard" class="tab-panel active">
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-number">{{ stats.skills }}</div>
@@ -632,40 +696,61 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             {% endfor %}
         </div>
     </div>
+    </div><!-- /tab-dashboard -->
 
+    <div id="tab-archive" class="tab-panel">
     <div class="section">
-        <h2 class="section-title" data-i18n="section_timeline"><span>📅</span> {{ i18n.section_timeline }}</h2>
-        <div class="timeline">
+        {% if timeline %}
+        <div class="archive-grid">
             {% for entry in timeline %}
-            <div class="timeline-item{% if entry.future %} future{% endif %}{% if entry.has_gap %} gap{% endif %}">
-                <div class="timeline-date">{{ entry.date }}</div>
-                <div class="timeline-content">
-                    <div class="timeline-title">
-                        {{ entry.title }}
-                        {% if entry.has_gap %}
-                        <span class="gap-warning" data-i18n="timeline_gap_warning">{{ i18n.timeline_gap_warning }}</span>
-                        {% endif %}
-                    </div>
-                    <p class="timeline-desc">{{ entry.summary }}</p>
-                    {% if entry.changes %}
-                    <details class="timeline-details">
-                        <summary><span data-i18n="timeline_expand">{{ i18n.timeline_expand }}</span> ({{ entry.changes|length }} <span data-i18n="change_count_label">{{ i18n.change_count_label }}</span>)</summary>
-                        <ul>
-                        {% for c in entry.changes %}
-                            <li>
-                                <span class="badge {{ c.type.split('_')[0] }}">{{ c.type }}</span>
-                                <strong>{{ c.name }}</strong>
-                                {{ c.desc }}
-                            </li>
-                        {% endfor %}
-                        </ul>
-                    </details>
-                    {% endif %}
+            <div class="archive-card">
+                <div class="archive-date">{{ entry.date }}</div>
+                <h3 class="archive-title">{{ entry.title }}</h3>
+                <p class="archive-summary">{{ entry.summary }}</p>
+                <div class="archive-stats">
+                    {% set skill_n = entry.changes | selectattr('type', 'in', ['skill_added','skill_updated','skill_removed']) | list | length %}
+                    {% set mem_n = entry.changes | selectattr('type', 'in', ['memory_added','memory_removed']) | list | length %}
+                    {% set cron_n = entry.changes | selectattr('type', 'in', ['cron_added','cron_removed']) | list | length %}
+                    <span class="archive-stat">● <span data-i18n="archive_stats_skills">{{ i18n.archive_stats_skills }}</span>: {{ skill_n }}</span>
+                    <span class="archive-stat">● <span data-i18n="archive_stats_memories">{{ i18n.archive_stats_memories }}</span>: {{ mem_n }}</span>
+                    <span class="archive-stat">● <span data-i18n="archive_stats_cron">{{ i18n.archive_stats_cron }}</span>: {{ cron_n }}</span>
+                    <span class="archive-stat">⚡ <span data-i18n="archive_evo_points">{{ i18n.archive_evo_points }}</span>: {{ entry.changes|length }}</span>
                 </div>
+                <div class="archive-tags" data-tags-source="{{ entry.title }} {{ entry.changes | map(attribute='name') | join(' ') }}"></div>
+                {% if entry.changes %}
+                <details class="archive-details">
+                    <summary><span data-i18n="archive_expand">{{ i18n.archive_expand }}</span> ({{ entry.changes|length }})</summary>
+                    <ul>
+                    {% for c in entry.changes %}
+                    <li>
+                        <span class="badge {{ c.type.split('_')[0] }}">{{ c.type }}</span>
+                        <strong>{{ c.name }}</strong>
+                        {{ c.desc }}
+                    </li>
+                    {% endfor %}
+                    </ul>
+                </details>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="archive-empty">
+            <div class="empty-illustration">
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                    <rect x="20" y="30" width="80" height="60" rx="8" stroke="#667eea" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.5"/>
+                    <circle cx="45" cy="55" r="6" stroke="#667eea" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="55" y1="55" x2="85" y2="55" stroke="#667eea" stroke-width="1.5" opacity="0.3"/>
+                    <line x1="55" y1="65" x2="75" y2="65" stroke="#667eea" stroke-width="1.5" opacity="0.2"/>
+                    <circle cx="60" cy="60" r="30" stroke="#764ba2" stroke-width="1" opacity="0.15"/>
+                </svg>
+            </div>
+            <h3 data-i18n="archive_empty_title">{{ i18n.archive_empty_title }}</h3>
+            <p data-i18n="archive_empty_desc">{{ i18n.archive_empty_desc }}</p>
+        </div>
+        {% endif %}
     </div>
+    </div><!-- /tab-archive -->
 
     <div class="footer">
         <p>Powered by <a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent</a> · <span data-i18n="footer_powered">{{ i18n.footer_powered }}</span> {{ last_updated }}</p>
@@ -718,6 +803,43 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         // Always ensure correct button state (defensive)
         document.querySelectorAll('.lang-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.lang === savedLang);
+        });
+    })();
+
+    // ── Tab switching ──
+    function switchTab(name) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+        const panel = document.getElementById('tab-' + name);
+        if (panel) panel.classList.add('active');
+        try { localStorage.setItem('evolution-tab', name); } catch(e) {}
+    }
+    // Init tab from localStorage
+    (function() {
+        let tab = 'dashboard';
+        try { tab = localStorage.getItem('evolution-tab') || 'dashboard'; } catch(e) {}
+        if (tab !== 'dashboard') switchTab(tab);
+    })();
+
+    // ── Tag generation for archive cards ──
+    (function() {
+        const TAG_MAP = {
+            'skill': 'skill', '技能': 'skill', 'memory': 'memory', '记忆': 'memory',
+            'cron': 'cron', '定时任务': 'cron', '新增': 'added', 'added': 'added',
+            '更新': 'updated', 'updated': 'updated', '移除': 'removed', 'removed': 'removed',
+        };
+        document.querySelectorAll('.archive-tags').forEach(el => {
+            const source = (el.dataset.tagsSource || '').toLowerCase();
+            const tags = new Set();
+            for (const [kw, tag] of Object.entries(TAG_MAP)) {
+                if (source.includes(kw)) tags.add(tag);
+            }
+            tags.forEach(t => {
+                const span = document.createElement('span');
+                span.className = 'archive-tag';
+                span.textContent = t;
+                el.appendChild(span);
+            });
         });
     })();
     </script>

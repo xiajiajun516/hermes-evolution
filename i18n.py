@@ -47,6 +47,17 @@ TRANSLATIONS = {
         "console_html_done": "[OK] HTML 已生成: {path}",
         "console_data_dir": "[INFO] Hermes 数据目录: {path}",
         "console_output_dir": "[INFO] 输出目录: {path}",
+
+        # ── Archive tab ──
+        "tab_dashboard": "📊 仪表盘",
+        "tab_archive": "📚 进化档案",
+        "archive_empty_title": "暂无进化记录",
+        "archive_empty_desc": "当 Skills、Memory 或 Cron Jobs 发生变化时，记录将自动出现在这里。",
+        "archive_stats_skills": "Skills",
+        "archive_stats_memories": "记忆",
+        "archive_stats_cron": "定时任务",
+        "archive_evo_points": "进化点",
+        "archive_expand": "展开变更详情",
     },
     "en": {
         # ── HTML page ──
@@ -94,6 +105,17 @@ TRANSLATIONS = {
         "console_html_done": "[OK] HTML generated: {path}",
         "console_data_dir": "[INFO] Hermes data dir: {path}",
         "console_output_dir": "[INFO] Output dir: {path}",
+
+        # ── Archive tab ──
+        "tab_dashboard": "📊 Dashboard",
+        "tab_archive": "📚 Archive",
+        "archive_empty_title": "No Evolution Records",
+        "archive_empty_desc": "Records appear here automatically when Skills, Memory, or Cron Jobs change.",
+        "archive_stats_skills": "Skills",
+        "archive_stats_memories": "Memories",
+        "archive_stats_cron": "Cron Jobs",
+        "archive_evo_points": "Evolution Pts",
+        "archive_expand": "Show changes",
     },
 }
 
