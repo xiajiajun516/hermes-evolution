@@ -35,6 +35,29 @@ from pathlib import Path
 from typing import Any
 
 from i18n import get as i18n_get, t as i18n_t, resolve_lang, TRANSLATIONS
+from src.core.collector import (
+    collect_all,
+    collect_cron_jobs,
+    collect_memory,
+    collect_skills,
+    collect_snapshot,
+    hash_content,
+    parse_skill_frontmatter,
+)
+from src.core.diff_engine import (
+    append_timeline_entry,
+    compare_snapshots,
+    compute_evolution_stats,
+    diff_snapshots,
+    full_rebuild_timeline,
+    latest_snapshot,
+    load_timeline,
+    save_snapshot,
+    save_timeline,
+    snapshots_dir,
+    summarize_snapshot,
+    trim_timeline,
+)
 
 
 # ─── 路径工具 ────────────────────────────────────────────────────────────────
@@ -72,263 +95,7 @@ def detect_project(project_dir: Path | None = None) -> str:
     return d.name
 
 
-# ─── 数据采集 ────────────────────────────────────────────────────────────────
 
-def collect_skills(hermes_home: Path) -> list[dict]:
-    """扫描 skills 目录，解析每个 SKILL.md"""
-    skills_dir = hermes_home / "skills"
-    if not skills_dir.is_dir():
-        return []
-
-    skills = []
-    for skill_md in skills_dir.rglob("SKILL.md"):
-        rel = skill_md.relative_to(skills_dir)
-        category = str(rel.parent) if rel.parent != Path(".") else ""
-
-        content = skill_md.read_text(encoding="utf-8", errors="replace")
-        meta = parse_skill_frontmatter(content)
-
-        skills.append({
-            "name": meta.get("name", skill_md.parent.name),
-            "category": category,
-            "description": meta.get("description", ""),
-            "version": meta.get("version", "1.0.0"),
-            "tags": meta.get("metadata", {}).get("hermes", {}).get("tags", []),
-            "path": str(rel),
-            "content_hash": hash_content(content),
-            "mtime": skill_md.stat().st_mtime if skill_md.exists() else 0,
-        })
-
-    skills.sort(key=lambda s: s["name"])
-    return skills
-
-
-def parse_skill_frontmatter(content: str) -> dict:
-    """解析 YAML frontmatter"""
-    m = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
-    if not m:
-        return {}
-    try:
-        return yaml.safe_load(m.group(1)) or {}
-    except yaml.YAMLError:
-        return {}
-
-
-def collect_memory(hermes_home: Path) -> list[dict]:
-    """从 memories 目录和 state.db 读取 memory 条目"""
-    memories = []
-    mem_dir = hermes_home / "memories"
-
-    # 方式1: *.md 纯文本文件（文件名为 target，每行一条）
-    if mem_dir.is_dir():
-        for mf in sorted(mem_dir.rglob("*.md")):
-            try:
-                target = mf.stem.lower()  # MEMORY.md → memory, USER.md → user
-                text = mf.read_text(encoding="utf-8").strip()
-                for line in text.splitlines():
-                    line = line.strip()
-                    if line:
-                        memories.append({
-                            "target": target,
-                            "content": line[:200] + ("..." if len(line) > 200 else ""),
-                            "created_at": "",
-                            "updated_at": "",
-                            "content_hash": hash_content(line),
-                        })
-            except Exception:
-                pass
-
-    # 方式2: JSON 文件
-    if mem_dir.is_dir():
-        for mf in sorted(mem_dir.rglob("*.json")):
-            try:
-                data = json.loads(mf.read_text(encoding="utf-8"))
-                if isinstance(data, list):
-                    for entry in data:
-                        content = str(entry.get("content", entry))
-                        memories.append({
-                            "target": entry.get("target", "memory"),
-                            "content": content[:200] + ("..." if len(content) > 200 else ""),
-                            "created_at": entry.get("created_at", ""),
-                            "updated_at": entry.get("updated_at", ""),
-                            "content_hash": hash_content(content),
-                        })
-                elif isinstance(data, dict):
-                    content = str(data.get("content", json.dumps(data)))
-                    memories.append({
-                        "target": data.get("target", "memory"),
-                        "content": content[:200] + ("..." if len(content) > 200 else ""),
-                        "created_at": data.get("created_at", ""),
-                        "updated_at": data.get("updated_at", ""),
-                        "content_hash": hash_content(content),
-                    })
-            except Exception:
-                continue
-
-    # 方式3: state.db
-    db_path = hermes_home / "state.db"
-    if db_path.exists():
-        try:
-            conn = sqlite3.connect(str(db_path))
-            conn.row_factory = sqlite3.Row
-            tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-            if "memory" in tables:
-                cur = conn.execute(
-                    "SELECT target, content, created_at, updated_at FROM memory ORDER BY target, created_at"
-                )
-                for r in cur.fetchall():
-                    memories.append({
-                        "target": r["target"],
-                        "content": r["content"][:200] + ("..." if len(r["content"]) > 200 else ""),
-                        "created_at": r["created_at"],
-                        "updated_at": r["updated_at"],
-                        "content_hash": hash_content(r["content"]),
-                    })
-            conn.close()
-        except Exception as e:
-            print(f"[WARN] state.db memory 读取失败: {e}", file=sys.stderr)
-
-    return memories
-
-
-def collect_cron_jobs(hermes_home: Path) -> list[dict]:
-    """从 config 或 cron 目录读取 cron jobs"""
-    config_path = hermes_home / "config.yaml"
-    jobs = []
-
-    # 尝试从 config.yaml 读取
-    if config_path.exists():
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
-            cron_config = config.get("cron", {}) if isinstance(config, dict) else {}
-            for job_id, job in cron_config.get("jobs", {}).items():
-                jobs.append({
-                    "id": job_id,
-                    "name": job.get("name", job_id),
-                    "schedule": job.get("schedule", ""),
-                    "prompt": str(job.get("prompt", ""))[:100],
-                    "enabled": job.get("enabled", True),
-                })
-        except Exception:
-            pass
-
-    # 也扫描 cron/ 目录下的 job 定义文件
-    cron_dir = hermes_home / "cron"
-    if cron_dir.is_dir():
-        for jf in cron_dir.rglob("*.yaml"):
-            try:
-                data = yaml.safe_load(jf.read_text(encoding="utf-8")) or {}
-                jobs.append({
-                    "id": jf.stem,
-                    "name": data.get("name", jf.stem),
-                    "schedule": data.get("schedule", ""),
-                    "prompt": str(data.get("prompt", ""))[:100],
-                })
-            except Exception:
-                pass
-
-    return jobs
-
-
-def collect_snapshot(hermes_home: Path) -> dict:
-    """采集当前快照"""
-    return {
-        "timestamp": datetime.now().isoformat(),
-        "hermes_home": str(hermes_home),
-        "skills": collect_skills(hermes_home),
-        "memories": collect_memory(hermes_home),
-        "cron_jobs": collect_cron_jobs(hermes_home),
-    }
-
-
-# ─── 快照管理 ────────────────────────────────────────────────────────────────
-
-def snapshots_dir(output_dir: Path) -> Path:
-    d = output_dir / "snapshots"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
-
-
-def latest_snapshot(snap_dir: Path) -> dict | None:
-    """获取最近一次快照"""
-    files = sorted(snap_dir.glob("*.json"), reverse=True)
-    for f in files:
-        try:
-            return json.loads(f.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-    return None
-
-
-def save_snapshot(snap_dir: Path, data: dict):
-    """保存快照（使用时间戳避免同一天多次运行覆盖）"""
-    ts = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-    path = snap_dir / f"{ts}.json"
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-# ─── Diff 引擎 ───────────────────────────────────────────────────────────────
-
-def diff_snapshots(old: dict | None, new: dict) -> dict:
-    """对比两个快照，返回变更摘要"""
-    if old is None:
-        return {"is_baseline": True, "changes": []}
-
-    changes = []
-
-    # Skills 变更
-    old_skills = {s["name"]: s for s in old.get("skills", [])}
-    new_skills = {s["name"]: s for s in new.get("skills", [])}
-
-    for name, skill in new_skills.items():
-        if name not in old_skills:
-            changes.append({"type": "skill_added", "name": name, "detail": skill})
-        elif skill["content_hash"] != old_skills[name]["content_hash"]:
-            changes.append({
-                "type": "skill_updated",
-                "name": name,
-                "detail": skill,
-                "old": {"version": old_skills[name].get("version", "")}
-            })
-    for name in old_skills:
-        if name not in new_skills:
-            changes.append({"type": "skill_removed", "name": name, "detail": old_skills[name]})
-
-    # Memory 变更
-    old_memories = {m["content_hash"]: m for m in old.get("memories", [])}
-    new_memories = {m["content_hash"]: m for m in new.get("memories", [])}
-
-    added = set(new_memories) - set(old_memories)
-    removed = set(old_memories) - set(new_memories)
-    for h in added:
-        changes.append({"type": "memory_added", "name": f"memory:{new_memories[h]['target']}", "detail": new_memories[h]})
-    for h in removed:
-        changes.append({"type": "memory_removed", "name": f"memory:{old_memories[h]['target']}", "detail": old_memories[h]})
-
-    # Cron jobs 变更
-    old_cron = {j["id"]: j for j in old.get("cron_jobs", [])}
-    new_cron = {j["id"]: j for j in new.get("cron_jobs", [])}
-
-    for jid, job in new_cron.items():
-        if jid not in old_cron:
-            changes.append({"type": "cron_added", "name": job.get("name", jid), "detail": job})
-    for jid in old_cron:
-        if jid not in new_cron:
-            changes.append({"type": "cron_removed", "name": old_cron[jid].get("name", jid), "detail": old_cron[jid]})
-
-    # 检查快照间隔
-    old_time = datetime.fromisoformat(old["timestamp"]) if old.get("timestamp") else None
-    new_time = datetime.fromisoformat(new["timestamp"])
-    days_gap = (new_time - old_time).days if old_time else 0
-
-    return {
-        "is_baseline": False,
-        "changes": changes,
-        "old_snapshot_date": old.get("timestamp", ""),
-        "days_since_last": days_gap,
-        "has_gap": days_gap > 1,
-    }
 
 
 # ─── HTML 模板（基于进化档案设计指南） ──────────────────────────────────────
@@ -988,135 +755,6 @@ def render_html(snapshot: dict, diff_result: dict, timeline_data: list[dict], ou
     output_path.write_text(html, encoding="utf-8")
     print(f"[OK] HTML 已生成: {output_path}")
 
-
-def compute_evolution_stats(timeline_data: list[dict]) -> dict:
-    """从时间线数据计算进化统计"""
-    skills_added = 0
-    skills_updated = 0
-    memories_changed = 0
-    for entry in timeline_data:
-        for c in entry.get("changes", []):
-            t = c.get("type", "")
-            if t == "skill_added":
-                skills_added += 1
-            elif t == "skill_updated":
-                skills_updated += 1
-            elif t.startswith("memory_"):
-                memories_changed += 1
-    return {
-        "skills_added": skills_added,
-        "skills_updated": skills_updated,
-        "memories_changed": memories_changed,
-    }
-
-
-def load_timeline(output_dir: Path) -> list[dict]:
-    """加载已有的时间线数据"""
-    timeline_file = output_dir / "timeline.json"
-    if timeline_file.exists():
-        try:
-            return json.loads(timeline_file.read_text(encoding="utf-8"))
-        except Exception:
-            return []
-    return []
-
-
-def save_timeline(output_dir: Path, data: list[dict]):
-    """保存时间线数据"""
-    timeline_file = output_dir / "timeline.json"
-    timeline_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dict, lang: str, project: str = ""):
-    """将 diff 结果追加为时间线条目"""
-    if diff_result.get("is_baseline"):
-        return
-
-    changes = diff_result.get("changes", [])
-    if not changes:
-        return
-
-    # 生成变更摘要
-    summary_parts = []
-    change_details = []
-    type_counts = {}
-    for c in changes:
-        t = c["type"]
-        type_counts[t] = type_counts.get(t, 0) + 1
-
-    # 构建摘要
-    if type_counts.get("skill_added", 0):
-        summary_parts.append(i18n_t(lang, "change_skill_added", n=type_counts["skill_added"]))
-    if type_counts.get("skill_updated", 0):
-        summary_parts.append(i18n_t(lang, "change_skill_updated", n=type_counts["skill_updated"]))
-    if type_counts.get("skill_removed", 0):
-        summary_parts.append(i18n_t(lang, "change_skill_removed", n=type_counts["skill_removed"]))
-    if type_counts.get("memory_added", 0):
-        summary_parts.append(i18n_t(lang, "change_memory_added", n=type_counts["memory_added"]))
-    if type_counts.get("memory_removed", 0):
-        summary_parts.append(i18n_t(lang, "change_memory_removed", n=type_counts["memory_removed"]))
-    if type_counts.get("cron_added", 0):
-        summary_parts.append(i18n_t(lang, "change_cron_added", n=type_counts["cron_added"]))
-    if type_counts.get("cron_removed", 0):
-        summary_parts.append(i18n_t(lang, "change_cron_removed", n=type_counts["cron_removed"]))
-
-    for c in changes:
-        detail_desc = ""
-        if c["type"] == "skill_added":
-            detail_desc = c["detail"].get("description", "")[:80]
-        elif c["type"] == "skill_updated":
-            old_v = c.get("old", {}).get("version", "")
-            new_v = c["detail"].get("version", "")
-            detail_desc = f"v{old_v} → v{new_v}" if old_v and new_v else i18n_t(lang, "change_skill_updated_detail")
-        elif c["type"] == "memory_added":
-            detail_desc = c["detail"].get("content", "")[:60]
-        elif c["type"] == "memory_removed":
-            detail_desc = c["detail"].get("content", "")[:60]
-        elif c["type"] in ("cron_added", "cron_removed"):
-            detail_desc = c["detail"].get("name", "")
-
-        change_details.append({
-            "type": c["type"],
-            "name": c["name"],
-            "desc": detail_desc,
-        })
-
-    date_str = snapshot["timestamp"][:10]
-    entry = {
-        "date": date_str,
-        "project": project,
-        "title": " · ".join(summary_parts) if summary_parts else i18n_t(lang, "change_title_fallback"),
-        "summary": i18n_t(lang, "change_summary", n=len(changes)),
-        "changes": change_details,
-        "has_gap": diff_result.get("has_gap", False),
-        "future": False,
-    }
-
-    # 插入到时间线最前面
-    timeline.insert(0, entry)
-
-    # 清理 3 个月前的记录
-    cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
-    timeline = [e for e in timeline if e["date"] >= cutoff or e.get("future")]
-
-
-def full_rebuild_timeline(snapshots_dir: Path, timeline: list[dict]) -> list[dict]:
-    """全量重写时间线：压缩 3 个月前的记录"""
-    # 从快照重建
-    return trim_timeline(timeline)
-
-
-def trim_timeline(timeline: list[dict], days: int = 90) -> list[dict]:
-    """裁剪旧记录"""
-    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-    return [e for e in timeline if e["date"] >= cutoff or e.get("future")]
-
-
-# ─── 工具函数 ────────────────────────────────────────────────────────────────
-
-def hash_content(text: str) -> str:
-    import hashlib
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 # ─── 主入口 ───────────────────────────────────────────────────────────────────
