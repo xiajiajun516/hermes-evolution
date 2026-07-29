@@ -129,7 +129,7 @@ function buildSideBySideRows(diffItems) {
   return rows;
 }
 
-function renderSideBySideTable(diffItems) {
+function renderSideBySideTable(diffItems, lang) {
   const rows = buildSideBySideRows(diffItems);
   return `
     <table class="diff-table diff-sbs">
@@ -155,7 +155,7 @@ function renderSideBySideTable(diffItems) {
   `;
 }
 
-function renderUnifiedTable(diffItems) {
+function renderUnifiedTable(diffItems, lang) {
   return `
     <table class="diff-table diff-unified">
       <thead>
@@ -223,7 +223,7 @@ export function renderDiffView(oldText = '', newText = '', mode = 'side-by-side'
         </div>
       </div>
       <div class="diff-content-wrapper">
-        ${mode === 'side-by-side' ? renderSideBySideTable(diffItems) : renderUnifiedTable(diffItems)}
+        ${mode === 'side-by-side' ? renderSideBySideTable(diffItems, lang) : renderUnifiedTable(diffItems, lang)}
       </div>
     </div>
   `;

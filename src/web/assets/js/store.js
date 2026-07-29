@@ -85,6 +85,9 @@ export const store = {
       this.state.meta = data.meta || this.state.meta;
       this.state.timeline = data.timeline || [];
       this.state.latest = data.latest || this.state.latest;
+      // 恢复受 localStorage 持久化的状态（刷新后保留）
+      this.state.currentTab = localStorage.getItem('hermes_tab') || 'dashboard';
+      this.state.lang = localStorage.getItem('hermes_lang') || 'zh';
       this.state.loading = false;
       this.notify();
       return;
