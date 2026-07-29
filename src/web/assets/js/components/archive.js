@@ -1,14 +1,18 @@
 // src/web/assets/js/components/archive.js
 import { t } from '../i18n.js';
 import { store } from '../store.js';
+import { openDiffModal } from './diff_view.js';
 
 const expandedItems = new Set();
+const changeDataMap = new Map();
 
 export function renderArchive(state) {
   const lang = state.lang;
   const timeline = state.timeline || [];
   const searchQuery = (state.searchQuery || '').toLowerCase().trim();
   const selectedProject = state.selectedProject || 'all';
+
+  changeDataMap.clear();
 
   // 过滤时间线条目
   const filteredTimeline = timeline.filter(entry => {
@@ -74,23 +78,24 @@ export function renderArchive(state) {
 
                   ${isExpanded ? `
                     <div class="timeline-changes-details" style="margin-top: 0.75rem; border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
-                      ${entry.changes.map(c => {
+                      ${entry.changes.map((c, cIdx) => {
                         let badgeClass = 'badge-blue';
                         if (c.type.includes('added')) badgeClass = 'badge-green';
                         if (c.type.includes('removed')) badgeClass = 'badge-red';
 
+                        const changeId = `change_${index}_${cIdx}`;
+                        changeDataMap.set(changeId, c);
+
                         return `
                           <div class="change-item" style="justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                               <span class="badge ${badgeClass}">${c.type}</span>
                               <strong>${c.name}</strong>
                               ${c.desc ? `<span class="change-item-desc">(${c.desc})</span>` : ''}
                             </div>
-                            ${c.type === 'skill_updated' ? `
-                              <button class="btn view-diff-btn" data-name="${c.name}" style="font-size: 0.75rem; padding: 0.15rem 0.45rem;">
-                                Visual Diff 🔍
-                              </button>
-                            ` : ''}
+                            <button class="btn view-diff-btn" data-id="${changeId}" style="font-size: 0.75rem; padding: 0.15rem 0.45rem;">
+                              Visual Diff 🔍
+                            </button>
                           </div>
                         `;
                       }).join('')}
@@ -107,7 +112,7 @@ export function renderArchive(state) {
 }
 
 export function bindArchiveEvents(container) {
-  // 展开/收起按钮绑定
+  // 1. 展开/收起按钮绑定
   container.querySelectorAll('.toggle-expand-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const key = e.currentTarget.getAttribute('data-key');
@@ -117,6 +122,20 @@ export function bindArchiveEvents(container) {
         expandedItems.add(key);
       }
       store.notify();
+    });
+  });
+
+  // 2. Visual Diff 按钮绑定
+  container.querySelectorAll('.view-diff-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const change = changeDataMap.get(id);
+      if (change) {
+        const oldText = change.old_content || '';
+        const newText = change.new_content || '';
+        const title = `${change.type}: ${change.name}`;
+        openDiffModal(title, oldText, newText);
+      }
     });
   });
 }

@@ -7,11 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.core.exporter import build_meta, export_data
+from src.core.exporter import build_meta, export_data, export_site
 
 
 class TestExporter(unittest.TestCase):
-
     def setUp(self):
         self.snapshot = {
             "timestamp": "2026-07-29T12:00:00",
@@ -73,6 +72,17 @@ class TestExporter(unittest.TestCase):
             self.assertEqual(meta_content["project"], "test-project")
             self.assertEqual(len(timeline_content), 1)
             self.assertEqual(latest_content["timestamp"], "2026-07-29T12:00:00")
+
+    def test_export_site(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = Path(tmpdir)
+            files = export_site(out_dir, self.timeline, self.snapshot, lang="zh", project="test-site")
+
+            index_file = out_dir / "index.html"
+            self.assertTrue(index_file.exists())
+            content = index_file.read_text(encoding="utf-8")
+            self.assertIn("window.__INITIAL_DATA__ =", content)
+            self.assertIn("test-site", content)
 
 
 if __name__ == "__main__":

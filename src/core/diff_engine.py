@@ -195,23 +195,38 @@ def append_timeline_entry(timeline: list[dict], diff_result: dict, snapshot: dic
 
     for c in changes:
         detail_desc = ""
+        old_content = ""
+        new_content = ""
         if c["type"] == "skill_added":
             detail_desc = c["detail"].get("description", "")[:80]
+            new_content = f"Name: {c['name']}\nCategory: {c['detail'].get('category', '')}\nVersion: {c['detail'].get('version', '')}\nDescription: {c['detail'].get('description', '')}"
         elif c["type"] == "skill_updated":
             old_v = c.get("old", {}).get("version", "")
             new_v = c["detail"].get("version", "")
             detail_desc = f"v{old_v} → v{new_v}" if old_v and new_v else i18n_t(lang, "change_skill_updated_detail")
+            old_content = f"Name: {c['name']}\nVersion: {old_v}\nDescription: {c.get('old', {}).get('description', '')}"
+            new_content = f"Name: {c['name']}\nVersion: {new_v}\nDescription: {c['detail'].get('description', '')}"
+        elif c["type"] == "skill_removed":
+            old_content = f"Name: {c['name']}\nVersion: {c['detail'].get('version', '')}\nDescription: {c['detail'].get('description', '')}"
         elif c["type"] == "memory_added":
             detail_desc = c["detail"].get("content", "")[:60]
+            new_content = c["detail"].get("content", "")
         elif c["type"] == "memory_removed":
             detail_desc = c["detail"].get("content", "")[:60]
+            old_content = c["detail"].get("content", "")
         elif c["type"] in ("cron_added", "cron_removed"):
             detail_desc = c["detail"].get("name", "")
+            if c["type"] == "cron_added":
+                new_content = f"Job: {c['detail'].get('name', '')}\nSchedule: {c['detail'].get('schedule', '')}\nPrompt: {c['detail'].get('prompt', '')}"
+            else:
+                old_content = f"Job: {c['detail'].get('name', '')}\nSchedule: {c['detail'].get('schedule', '')}\nPrompt: {c['detail'].get('prompt', '')}"
 
         change_details.append({
             "type": c["type"],
             "name": c["name"],
             "desc": detail_desc,
+            "old_content": old_content,
+            "new_content": new_content,
         })
 
     date_str = snapshot["timestamp"][:10]
