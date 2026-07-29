@@ -8,14 +8,22 @@ export function renderSkills(state) {
   const searchQuery = (state.searchQuery || '').toLowerCase().trim();
   const selectedCategory = state.selectedCategory || 'all';
 
-  // 提取所有分类
-  const categoriesSet = new Set();
+  // 统计各分类的数量
+  const categoryCounts = {};
   skills.forEach(s => {
     if (s.category) {
       categoriesSet.add(s.category);
+      categoryCounts[s.category] = (categoryCounts[s.category] || 0) + 1;
     }
   });
   const categories = Array.from(categoriesSet).sort();
+
+  function formatCatName(cat) {
+    if (!cat) return '';
+    if (cat.toLowerCase() === 'mlops') return 'MLOps';
+    if (cat.toLowerCase() === 'github') return 'GitHub';
+    return cat.split(/[-_]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
 
   // 过滤 Skills
   const filteredSkills = skills.filter(skill => {
@@ -43,7 +51,7 @@ export function renderSkills(state) {
         </button>
         ${categories.map(cat => `
           <button class="filter-chip ${selectedCategory === cat ? 'active' : ''}" data-category="${cat}">
-            ${cat}
+            ${formatCatName(cat)} (${categoryCounts[cat] || 0})
           </button>
         `).join('')}
       </div>

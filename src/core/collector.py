@@ -39,7 +39,14 @@ def collect_skills(hermes_home: Path) -> list[dict]:
     skills = []
     for skill_md in skills_dir.rglob("SKILL.md"):
         rel = skill_md.relative_to(skills_dir)
-        category = str(rel.parent) if rel.parent != Path(".") else ""
+        # 提取顶级分类目录名（如 creative/ascii-art/SKILL.md 提取为 creative）
+        parts = rel.parts
+        if len(parts) > 2:  # 例如 mlops/evaluation/weights-and-biases/SKILL.md 或 creative/ascii-art/SKILL.md
+            category = parts[0]
+        elif len(parts) == 2:  # 例如 category/SKILL.md
+            category = parts[0]
+        else:
+            category = "general"
 
         content = skill_md.read_text(encoding="utf-8", errors="replace")
         meta = parse_skill_frontmatter(content)

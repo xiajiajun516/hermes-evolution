@@ -50,7 +50,7 @@ class TestCollector(unittest.TestCase):
             skills = collect_skills(hermes_home)
             self.assertEqual(len(skills), 1)
             self.assertEqual(skills[0]["name"], "my_skill")
-            self.assertEqual(skills[0]["category"], str(Path("demo_category") / "my_skill"))
+            self.assertEqual(skills[0]["category"], "demo_category")
             self.assertEqual(skills[0]["version"], "1.2.0")
 
     def test_collect_memory_mock(self):
