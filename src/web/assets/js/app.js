@@ -161,8 +161,14 @@ function setupEventListeners() {
 }
 
 // 启动应用
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   setupEventListeners();
   store.subscribe(renderApp);
   store.loadData();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
